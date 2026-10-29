@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Repair Triage Agent</title>
+<style>
+  :root {
+    --graphite: #1c252b;
+    --slate: #2b3a44;
+    --steel: #5b6b76;
+    --mist: #9fb3bf;
+    --fog: #d9dee2;
+    --paper: #eef1f3;
+    --white: #ffffff;
+    --amber: #e8a317;
+    --teal: #2f7f7a;
+    --red: #c4513a;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #0f1519;
+    font-family: var(--sans);
+    color: var(--graphite);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* Fixed 1280x720 stage, scaled to fit the window */
+  #stage { width: 1280px; height: 720px; position: relative; transform-origin: center center; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 56px 64px;
+    background: var(--white);
+    border-radius: 6px;
+    opacity: 0; pointer-events: none;
+    transition: opacity .35s ease;
+    display: flex; flex-direction: column;
+  }
+  .slide.active { opacity: 1; pointer-events: auto; }
+  .slide.dark { background: var(--slate); color: var(--white); }
+
+  h1 { font-size: 64px; font-weight: 800; letter-spacing: -1px; line-height: 1.05; }
+  h2 { font-size: 36px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 36px; }
+  .kicker { font-size: 15px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--steel); }
+  .dark .kicker { color: var(--mist); }
+
+  .card { background: var(--paper); border-radius: 12px; padding: 28px; }
+  .icon {
+    width: 52px; height: 52px; border-radius: 50%;
+    display: grid; place-items: center; flex: none;
+  }
+  .icon svg { width: 26px; height: 26px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* 1. Title */
+  .title-wrap { margin-top: auto; margin-bottom: auto; }
+  .title-wrap .icon { background: var(--amber); margin-bottom: 36px; width: 64px; height: 64px; }
+  .title-wrap .icon svg { stroke: var(--graphite); width: 32px; height: 32px; }
+  .subtitle { font-size: 28px; color: var(--amber); margin-top: 20px; font-weight: 600; }
+  .footline { font-size: 17px; color: var(--mist); }
+
+  /* 2. Problem */
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-block: auto; }
+  .grid3 .card { padding: 36px 32px 40px; }
+  .stat .icon { margin-bottom: 26px; }
+  .stat .big { font-size: 60px; font-weight: 800; letter-spacing: -1px; line-height: 1; margin-bottom: 18px; }
+  .stat .big.small { font-size: 42px; }
+  .stat .label { font-size: 21px; font-weight: 700; color: var(--slate); line-height: 1.3; margin-bottom: 12px; }
+  .stat .note { font-size: 16px; color: var(--steel); line-height: 1.4; }
+
+  /* 3. Architecture */
+  .center { margin-block: auto; }
+  .agents { display: grid; grid-template-columns: 1fr 34px 1fr 34px 1fr; align-items: stretch; margin-bottom: 26px; }
+  .agent .head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+  .agent .n { font-size: 14px; font-weight: 700; color: var(--steel); letter-spacing: 1px; text-transform: uppercase; }
+  .agent .t { font-size: 23px; font-weight: 800; }
+  .agent p { font-size: 17px; line-height: 1.45; color: var(--slate); }
+  .arrow { display: grid; place-items: center; }
+  .arrow svg { width: 22px; height: 22px; fill: var(--steel); }
+  .supervisor { background: var(--slate); color: var(--white); border-radius: 12px; padding: 22px 28px; display: flex; gap: 22px; align-items: center; }
+  .supervisor .icon { background: var(--amber); }
+  .supervisor .icon svg { stroke: var(--graphite); }
+  .supervisor b { font-size: 20px; display: block; margin-bottom: 6px; }
+  .supervisor span { font-size: 16px; color: var(--fog); line-height: 1.45; }
+
+  /* 4. Demo */
+  .demo { display: grid; grid-template-columns: 340px 40px 1fr; align-items: center; margin-block: auto; }
+  .tcard .cause { margin-bottom: 22px; }
+  .intake .model { font-size: 30px; font-weight: 800; margin: 6px 0 4px; }
+  .intake .sub { font-size: 17px; color: var(--slate); margin-bottom: 26px; }
+  .intake .said { font-size: 15px; color: var(--steel); }
+  .intake .quote { font-size: 23px; font-style: italic; margin: 4px 0 26px; }
+  .repeat { font-size: 15px; color: var(--red); line-height: 1.45; border-top: 1px solid var(--fog); padding-top: 18px; }
+  .demo .arrow svg { fill: var(--amber); width: 28px; height: 28px; }
+  .tcard { border: 1px solid var(--fog); border-radius: 12px; padding: 26px 30px; box-shadow: 0 6px 22px rgba(28,37,43,.10); }
+  .tcard .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--teal); text-transform: uppercase; margin-bottom: 22px; }
+  .cause { margin-bottom: 18px; }
+  .cause .row { display: flex; justify-content: space-between; font-size: 19px; margin-bottom: 7px; }
+  .cause .row b { font-weight: 800; }
+  .bar { height: 12px; background: var(--paper); border-radius: 6px; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--steel); border-radius: 6px; }
+  .cause:first-of-type .bar i { background: var(--amber); }
+  .todo { margin-top: 22px; font-size: 17px; line-height: 1.6; color: var(--slate); }
+  .todo b { color: var(--graphite); }
+
+  /* 5. Proof */
+  .proof { display: grid; grid-template-columns: 1.45fr 1fr; gap: 32px; align-items: center; margin-block: auto; }
+  .chart-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+  .cols { display: flex; align-items: flex-end; gap: 36px; height: 360px; padding: 0 20px; border-bottom: 2px solid var(--fog); }
+  .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .col .v { font-size: 30px; font-weight: 800; margin-bottom: 10px; }
+  .col .b { width: 100%; border-radius: 8px 8px 0 0; }
+  .col-labels { display: flex; gap: 36px; padding: 12px 20px 0; }
+  .col-labels div { flex: 1; text-align: center; font-size: 16px; color: var(--slate); font-weight: 600; }
+  .conf-row { display: grid; grid-template-columns: 90px 1fr 70px; align-items: center; gap: 12px; margin: 16px 0; font-size: 18px; }
+  .conf-row .bar { height: 18px; background: var(--white); }
+  .conf-row b { text-align: right; }
+  .facts { margin-top: 26px; font-size: 16px; line-height: 1.55; color: var(--slate); }
+  .facts strong { color: var(--graphite); display: block; font-size: 17px; margin-bottom: 4px; }
+
+  /* 6. Impact */
+  .impact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-bottom: 48px; }
+  .impact .v { font-size: 60px; font-weight: 800; color: var(--amber); letter-spacing: -1px; }
+  .impact .l { font-size: 19px; color: var(--fog); line-height: 1.4; margin-top: 8px; }
+  .next b { color: var(--amber); font-size: 20px; display: block; margin-bottom: 12px; }
+  .next li { font-size: 19px; color: var(--fog); margin: 0 0 10px 22px; line-height: 1.4; }
+  .thanks { margin-top: auto; font-size: 17px; color: var(--mist); }
+
+  /* Chrome: page number, notes, controls */
+  .pageno { position: absolute; right: 30px; bottom: 22px; font-size: 14px; color: var(--steel); }
+  .dark .pageno { color: var(--mist); }
+  #progress { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--amber); transition: width .3s ease; }
+  #notes {
+    position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+    width: min(900px, calc(100vw - 32px));
+    background: rgba(15,21,25,.94); color: #e9eef1; border: 1px solid #33424c; border-radius: 10px;
+    padding: 16px 20px; font-size: 16px; line-height: 1.5; display: none;
+  }
+  #notes.show { display: block; }
+  #notes .lbl { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amber); margin-bottom: 6px; font-weight: 700; }
+  #help { position: fixed; top: 12px; right: 16px; font-size: 13px; color: #6f818c; transition: opacity 1s; }
+  #help.gone { opacity: 0; }
+  @media print { #notes, #help, #progress { display: none !important; } }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1. Title -->
+  <section class="slide dark" data-notes="Hi, we built a triage agent for the repair depot. Most agents tell a manager what happened last quarter. Ours tells the technician what to check on the unit in front of them, proves how often it's right, and says so when it doesn't know.">
+    <div class="title-wrap">
+      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></div>
+      <h1>Repair Triage Agent</h1>
+      <p class="subtitle">Tells the technician what to check, before teardown</p>
+    </div>
+    <p class="footline">SHPE 2026 Hackathon · Databricks: 3 agents + a supervisor</p>
+    <span class="pageno">1</span>
+  </section>
+
+  <!-- 2. Problem -->
+  <section class="slide" data-notes="Three problems. One: 83 percent of the 2026 repairs we tested on have no usable symptom, like 'UNKNOWN' or 'no reason given', so the technician starts blind. Two: the cause codes are messy, with over a thousand variants. An agent that queries the raw table undercounts Component Failure, 5,075 instead of 6,761. Three: almost a million dollars went into No Problem Found repairs, units that tested fine.">
+    <p class="kicker">The problem</p>
+    <h2>Technicians start most repairs blind</h2>
+    <div class="grid3">
+      <div class="card stat">
+        <div class="icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5h.01"/></svg></div>
+        <div class="big">83%</div>
+        <div class="label">of 2026 test repairs have no usable symptom</div>
+        <div class="note">"UNKNOWN", "No reason given", blank</div>
+      </div>
+      <div class="card stat">
+        <div class="icon" style="background:var(--amber)"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></div>
+        <div class="big small">5,075 → 6,761</div>
+        <div class="label">Component Failure count, raw vs normalized</div>
+        <div class="note">1,000+ raw cause strings → 13 clean causes</div>
+      </div>
+      <div class="card stat">
+        <div class="icon" style="background:var(--teal)"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c0-1.9-2.2-3-5-3s-5 1.2-5 3.3c0 4.7 10 2.4 10 7.2 0 2.1-2.2 3.5-5 3.5s-5-1.2-5-3.2"/></svg></div>
+        <div class="big">$996K</div>
+        <div class="label">spent on No Problem Found repairs</div>
+        <div class="note">1,116 lines where the unit tested fine</div>
+      </div>
+    </div>
+    <span class="pageno">2</span>
+  </section>
+
+  <!-- 3. Architecture -->
+  <section class="slide" data-notes="Here's the architecture. Agent 1 prepares the data: it cleans 41,504 repair lines, maps each catalog to its product family, tags the symptom or flags the complaint as vague, and collapses a thousand cause codes into 13. Agent 2 builds the evidence: how often each cause happened, at four levels from very specific to very general, plus which parts and areas go with each cause and each serial's repair history. Agent 3 turns that into one triage card. On top, a supervisor routes each question to the right Genie space. Every answer traces back to counted past repairs, with no black box.">
+    <p class="kicker">How it works</p>
+    <h2>Three agents feed one triage card, routed by a supervisor</h2>
+    <div class="center">
+    <div class="agents">
+      <div class="card agent">
+        <div class="head"><div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M6 12h12"/><path d="M10 18h4"/></svg></div>
+          <div><div class="n">Agent 1</div><div class="t">Prepare</div></div></div>
+        <p>Cleans 41,504 SAP lines, maps catalog → product family, tags symptom or vague, normalizes causes.</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="card agent">
+        <div class="head"><div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+          <div><div class="n">Agent 2</div><div class="t">Evidence</div></div></div>
+        <p>Cause frequencies at 4 levels (catalog + symptom → family → all), parts and areas per cause, serial history.</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="card agent">
+        <div class="head"><div class="icon" style="background:var(--amber)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 13l2 2 4-4"/></svg></div>
+          <div><div class="n">Agent 3</div><div class="t">Score + output</div></div></div>
+        <p><code>triage_card()</code>: top 3 causes, %, case counts, parts, areas, repeat warning, confidence. Scored on a 2026 holdout.</p>
+      </div>
+    </div>
+    <div class="supervisor">
+      <div class="icon"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="9" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5M12 12v5"/></svg></div>
+      <div><b>Supervisor agent</b><span>Routes each question to a Genie space: bench triage → Agent 3 · orders and repeat returns → Depot assistant · cycle times and pricing → Lifecycle analyst. PII fields are hidden everywhere.</span></div>
+    </div>
+    </div>
+    <span class="pageno">3</span>
+  </section>
+
+  <!-- 4. Demo -->
+  <section class="slide" data-notes="Live demo. The unit from the sample PDF: an R1394 axis module, and the customer wrote 'no reason given'. A generic agent gets stuck here. Ours falls back to the product family's history, 1,038 past Ultra 1394 repairs, and returns Component Failure at 50 percent, then Worn / End of Life and physical damage, with areas to inspect and parts to stage. The confidence is High because the sample is large and the top cause clearly leads. If the serial was repaired recently, like serial 44657535 back after 137 days, that warning comes first.">
+    <p class="kicker">Live triage</p>
+    <h2>A vague complaint still gets a ranked, sourced answer</h2>
+    <div class="demo">
+      <div class="card intake">
+        <p class="kicker">At intake</p>
+        <p class="model">R1394AM07/B</p>
+        <p class="sub">Ultra 1394 axis module</p>
+        <p class="said">Customer wrote:</p>
+        <p class="quote">"No reason given"</p>
+        <p class="repeat"><b>Second test:</b> serial 44657535 → the repeat-return warning appears first (repaired 137 days ago).</p>
+      </div>
+      <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="tcard">
+        <p class="hdr">Triage card · Confidence: High · based on 1,038 past Ultra 1394 repairs</p>
+        <div class="cause"><div class="row"><b>1. Component Failure</b><b>49.8% <span style="font-weight:500;color:var(--steel)">(517)</span></b></div><div class="bar"><i style="width:83%"></i></div></div>
+        <div class="cause"><div class="row"><span>2. Worn / End of Life</span><b>21.7% <span style="font-weight:500;color:var(--steel)">(225)</span></b></div><div class="bar"><i style="width:36%"></i></div></div>
+        <div class="cause"><div class="row"><span>3. Physical / Mechanical Damage</span><b>18.6% <span style="font-weight:500;color:var(--steel)">(193)</span></b></div><div class="bar"><i style="width:31%"></i></div></div>
+        <p class="todo"><b>Inspect first:</b> processor board, shunt IGBT, fan assembly, bus capacitor<br><b>Stage:</b> IGBT / power module, resistors, connectors</p>
+      </div>
+    </div>
+    <span class="pageno">4</span>
+  </section>
+
+  <!-- 5. Proof -->
+  <section class="slide" data-notes="Proof. We built the patterns from 2023 to 2025 only and tested on 1,873 labeled 2026 repairs, so there's no leakage. Always guessing the most common cause gets 45 percent. Our top pick is right 61 percent of the time, and the right cause is in our top three 86 percent of the time. The confidence labels are honest: High beats Medium, which beats Low. Even for vague complaints we still get 86 percent top-three.">
+    <p class="kicker">Proof</p>
+    <h2>It beats the baseline, and knows when it doesn't know</h2>
+    <div class="proof">
+      <div>
+        <p class="chart-title">Accuracy on 1,873 held-out 2026 repairs</p>
+        <div class="cols">
+          <div class="col"><span class="v">45.1%</span><div class="b" style="height:45.1%;background:var(--steel)"></div></div>
+          <div class="col"><span class="v">61.0%</span><div class="b" style="height:61%;background:var(--amber)"></div></div>
+          <div class="col"><span class="v">86.4%</span><div class="b" style="height:86.4%;background:var(--teal)"></div></div>
+        </div>
+        <div class="col-labels"><div>Baseline<br>(always top cause)</div><div>Agent top-1</div><div>Agent top-3</div></div>
+      </div>
+      <div class="card">
+        <p class="chart-title">Top-1 accuracy by confidence label</p>
+        <div class="conf-row"><span>High</span><div class="bar"><i style="width:96.6%;background:var(--teal)"></i></div><b>67.6%</b></div>
+        <div class="conf-row"><span>Medium</span><div class="bar"><i style="width:82.6%;background:var(--amber)"></i></div><b>57.8%</b></div>
+        <div class="conf-row"><span>Low</span><div class="bar"><i style="width:19.3%;background:var(--red)"></i></div><b>13.5%</b></div>
+        <div class="facts">
+          <strong>The labels are honest: High &gt; Medium &gt; Low.</strong>
+          Vague complaints: 60.3% top-1, 86.3% top-3.<br>
+          Trained on 2023–2025 only; no 2026 rows leak into the patterns.
+        </div>
+      </div>
+    </div>
+    <span class="pageno">5</span>
+  </section>
+
+  <!-- 6. Impact -->
+  <section class="slide dark" data-notes="Why it matters. Almost a million dollars in No Problem Found repairs is the first target. 1,240 units came back within 180 days, and those get flagged the moment they arrive. And 22,120 unlabeled lines can get suggested causes. Next we'd sharpen the symptom classifier, collect more teardown labels where data is thin, and blend in similar-case search. Thank you, happy to take questions.">
+    <p class="kicker">Impact</p>
+    <h2>What this unlocks for the depot</h2>
+    <div class="impact">
+      <div><div class="v">$996K</div><div class="l">No Problem Found spend to target with better intake triage</div></div>
+      <div><div class="v">1,240</div><div class="l">units back within 180 days, now flagged at intake</div></div>
+      <div><div class="v">22,120</div><div class="l">unlabeled repair lines the agent can suggest causes for</div></div>
+    </div>
+    <div class="next">
+      <b>Next steps</b>
+      <ul>
+        <li>A sharper symptom classifier: 83% of repairs still triage without a symptom</li>
+        <li>More teardown labels where data is thin (Kinetix 6000: 224 of 4,721 lines labeled)</li>
+        <li>Blend in similar-case search, tuned on 2025 data</li>
+      </ul>
+    </div>
+    <p class="thanks">Thank you · Questions?</p>
+    <span class="pageno">6</span>
+  </section>
+</div>
+
+<div id="progress"></div>
+<div id="notes"><div class="lbl">Speaker notes</div><div id="notes-text"></div></div>
+<div id="help">← → navigate · N notes · F fullscreen</div>
+
+<script>
+  const slides = [...document.querySelectorAll(".slide")];
+  const stage = document.getElementById("stage");
+  const notes = document.getElementById("notes");
+  let i = 0;
+  try { i = Math.min(slides.length - 1, Math.max(0, parseInt(location.hash.slice(1), 10) - 1 || 0)); } catch (e) {}
+
+  function fit() {
+    const s = Math.min(innerWidth / 1280, innerHeight / 720) * 0.96;
+    stage.style.transform = `scale(${s})`;
+  }
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((el, k) => el.classList.toggle("active", k === i));
+    document.getElementById("notes-text").textContent = slides[i].dataset.notes || "";
+    document.getElementById("progress").style.width = ((i + 1) / slides.length * 100) + "%";
+    history.replaceState(null, "", "#" + (i + 1));
+  }
+  addEventListener("keydown", e => {
+    if (["ArrowRight", "PageDown", " ", "Enter"].includes(e.key)) { e.preventDefault(); show(i + 1); }
+    else if (["ArrowLeft", "PageUp", "Backspace"].includes(e.key)) { e.preventDefault(); show(i - 1); }
+    else if (e.key === "Home") show(0);
+    else if (e.key === "End") show(slides.length - 1);
+    else if (e.key.toLowerCase() === "n") notes.classList.toggle("show");
+    else if (e.key.toLowerCase() === "f") {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.();
+    }
+  });
+  stage.addEventListener("click", e => show(e.clientX > innerWidth / 2 ? i + 1 : i - 1));
+  let x0 = null;
+  addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener("touchend", e => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40) show(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  });
+  addEventListener("resize", fit);
+  fit(); show(i);
+  setTimeout(() => document.getElementById("help").classList.add("gone"), 5000);
+</script>
+</body>
+</html>
