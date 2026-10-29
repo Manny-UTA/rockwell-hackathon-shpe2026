@@ -14,6 +14,9 @@ It reads real-data tables in `ultraviolet.silver_real` / `ultraviolet.gold_real`
 
 ## The three agents
 
+Full app structure (UI, API, data, agents, assistant, dashboard, config, permissions): [docs/architecture.md](docs/architecture.md).
+How every number on the triage card is calculated, with a worked example: [docs/triage-calculation.md](docs/triage-calculation.md).
+
 | Agent | File | Reads | Writes |
 |---|---|---|---|
 | 1 · Extract | `pipeline/agent1_extract.sql` | `ultraviolet.shpe.sap_economy_repair_order_lines` (raw SAP) | `silver_real.repair_orders_clean`, `repair_cause`, `repair_parts`: deduplicated lines with family, symptom, cleaned complaint, normalized serial, causes, standardized parts and areas |
