@@ -3,10 +3,10 @@ import { api } from '../api'
 import { TriageCard } from './Triage'
 
 const STAGES = [
-  { key: 'raw', label: 'SAP report', icon: '📄', sub: 'Raw repair order line' },
-  { key: 'agent1', label: 'Agent 1 · Extract', icon: '🧾', sub: 'Structures the report' },
-  { key: 'agent2', label: 'Agent 2 · Patterns', icon: '🧠', sub: 'Matches history, recommends' },
-  { key: 'agent3', label: 'Agent 3 · Insights', icon: '📊', sub: 'Checks results, feeds dashboards' },
+  { key: 'raw', label: 'SAP report', icon: '00', sub: 'Raw repair order line' },
+  { key: 'agent1', label: 'Agent 1 · Extract', icon: '01', sub: 'Structures the report' },
+  { key: 'agent2', label: 'Agent 2 · Patterns', icon: '02', sub: 'Matches history, recommends' },
+  { key: 'agent3', label: 'Agent 3 · Insights', icon: '03', sub: 'Checks results, feeds dashboards' },
 ]
 
 export default function Simulator() {
@@ -66,14 +66,14 @@ export default function Simulator() {
         <h3>How the agents work together</h3>
         <p className="muted">Each agent writes tables the next one reads. Counts are from the latest run of the repair-triage-agents job.</p>
         <div className="flow-row">
-          <FlowNode icon="📄" title="SAP repair orders" active={result && step === 0}
+          <FlowNode icon="00" title="SAP repair orders" active={result && step === 0}
             lines={['ultraviolet.shpe.sap_economy_repair_order_lines']} />
           <Arrow />
-          <FlowNode icon="🧾" title="Agent 1 · Extract" active={result && step === 1} lines={byAgent('1').map((h) => h.summary)} />
+          <FlowNode icon="01" title="Agent 1 · Extract" active={result && step === 1} lines={byAgent('1').map((h) => h.summary)} />
           <Arrow />
-          <FlowNode icon="🧠" title="Agent 2 · Patterns" active={result && step === 2} lines={byAgent('2').map((h) => h.summary)} />
+          <FlowNode icon="02" title="Agent 2 · Patterns" active={result && step === 2} lines={byAgent('2').map((h) => h.summary)} />
           <Arrow />
-          <FlowNode icon="📊" title="Agent 3 · Insights" active={result && step === 3} lines={byAgent('3').map((h) => h.summary)} />
+          <FlowNode icon="03" title="Agent 3 · Insights" active={result && step === 3} lines={byAgent('3').map((h) => h.summary)} />
         </div>
       </section>
 
@@ -166,7 +166,7 @@ const Chips = ({ items, empty = 'none recorded' }) =>
 function RawStage({ r }) {
   const raw = r.raw
   return (
-    <Stage n="📄" title={r.mode === 'order' ? `SAP report · order ${raw.order_number}-${raw.line_number}` : 'New unit at intake'}>
+    <Stage n="00" title={r.mode === 'order' ? `SAP report · order ${raw.order_number}-${raw.line_number}` : 'New unit at intake'}>
       <dl className="kv-grid">
         <Field label="Catalog">{raw.catalog}</Field>
         {raw.part_description && <Field label="Description">{raw.part_description}</Field>}

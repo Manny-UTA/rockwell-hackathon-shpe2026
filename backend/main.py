@@ -432,5 +432,5 @@ if DIST.exists():
     def spa(path: str):
         file = DIST / path
         if path and file.is_file():
-            return FileResponse(file)
-        return FileResponse(DIST / "index.html")
+            return FileResponse(file, headers={"Cache-Control": "no-store"} if file == DIST / "index.html" else None)
+        return FileResponse(DIST / "index.html", headers={"Cache-Control": "no-store"})
