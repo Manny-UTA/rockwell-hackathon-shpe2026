@@ -5,6 +5,8 @@
   /api/chat            - chat with the Agent Bricks supervisor endpoint
   /api/accuracy        - manager view: eval_results + summary KPIs
   /api/repeat-returns  - units that came back after a prior repair
+  /api/agents          - what each agent (extract -> patterns -> insights) handed off in the last job run
+  /api/simulate/...    - walk one real (or typed-in) repair through the three agents
 
 Inside a Databricks App, WorkspaceClient() authenticates as the app's service
 principal. Locally it uses your ~/.databrickscfg profile.
@@ -24,6 +26,8 @@ from pydantic import BaseModel
 WAREHOUSE_ID = os.getenv("DATABRICKS_WAREHOUSE_ID", "")
 AGENT_ENDPOINT = os.getenv("AGENT_ENDPOINT", "")
 CATALOG = os.getenv("UC_CATALOG", "ultraviolet")
+SILVER = f'{CATALOG}.{os.getenv("SILVER_SCHEMA", "silver_real")}'
+GOLD = f'{CATALOG}.{os.getenv("GOLD_SCHEMA", "gold_real")}'
 APP_TITLE = os.getenv("APP_TITLE", "Repair Triage")
 
 app = FastAPI(title=APP_TITLE)
@@ -78,8 +82,9 @@ class TriageRequest(BaseModel):
 @app.get("/api/catalogs")
 def catalogs():
     return {"catalogs": sql(
-        f"SELECT DISTINCT catalog, family FROM {CATALOG}.silver.repair_orders_clean "
-        "WHERE catalog IS NOT NULL ORDER BY catalog"
+        f"""SELECT catalog, max(family) AS family FROM {SILVER}.repair_orders_clean
+            WHERE catalog IS NOT NULL GROUP BY catalog HAVING count(*) >= 5
+            ORDER BY count(*) DESC LIMIT 2000"""
     )}
 
 
@@ -88,7 +93,7 @@ def triage(req: TriageRequest):
     if not req.catalog.strip():
         raise HTTPException(400, "Catalog number is required.")
     rows = sql(
-        f"SELECT * FROM {CATALOG}.gold.triage_card(:catalog, :serial, :failure_text) ORDER BY rnk",
+        f"SELECT * FROM {GOLD}.triage_card(:catalog, :serial, :failure_text) ORDER BY rnk",
         {
             "catalog": req.catalog.strip(),
             "serial": (req.serial or "").strip() or None,
@@ -123,26 +128,184 @@ def triage(req: TriageRequest):
 
 @app.get("/api/accuracy")
 def accuracy():
+    rates = """count(*) AS cases,
+               round(avg(CAST(hit_at_1 AS INT)), 3) AS hit_at_1,
+               round(avg(CAST(hit_at_3 AS INT)), 3) AS hit_at_3,
+               round(avg(CAST(baseline_hit AS INT)), 3) AS baseline"""
+    summary = sql(f"SELECT {rates}, max(baseline_cause) AS baseline_cause FROM {GOLD}.eval_results")[0]
+    by_level = sql(
+        f"""SELECT level_used, {rates} FROM {GOLD}.eval_results GROUP BY level_used
+            ORDER BY CASE level_used WHEN 'catalog+symptom' THEN 1 WHEN 'family+symptom' THEN 2
+                                     WHEN 'family' THEN 3 ELSE 4 END"""
+    )
     rows = sql(
         f"""SELECT order_number, line_number, catalog, family, symptom, is_vague,
                    predicted_top3, actual_causes, level_used, n, confidence,
                    hit_at_1, hit_at_3, baseline_cause, baseline_hit
-            FROM {CATALOG}.gold.eval_results ORDER BY order_number, line_number"""
+            FROM {GOLD}.eval_results ORDER BY order_number DESC, line_number LIMIT 300"""
     )
-    n = len(rows)
+    return {"summary": summary, "by_level": by_level, "rows": rows}
 
-    def rate(col):
-        return round(sum(r[col] == "true" for r in rows) / n, 3) if n else None
 
+@app.get("/api/patterns")
+def patterns():
+    causes = sql(
+        f"""SELECT family, cause, cases, total FROM {GOLD}.triage_patterns
+            WHERE level = 'family' AND total >= 50 ORDER BY total DESC, family, cases DESC"""
+    )
+    items = sql(
+        f"""SELECT family, cause, part, area, `count` FROM {GOLD}.parts_by_cause
+            WHERE family IN (SELECT family FROM {GOLD}.triage_patterns WHERE level = 'family' AND total >= 50)
+            ORDER BY family, `count` DESC"""
+    )
     return {
-        "summary": {"cases": n, "hit_at_1": rate("hit_at_1"), "hit_at_3": rate("hit_at_3"), "baseline": rate("baseline_hit")},
-        "rows": rows,
+        "causes": causes,
+        "parts": [i for i in items if i["part"]],
+        "areas": [i for i in items if i["area"]],
     }
 
 
 @app.get("/api/repeat-returns")
 def repeat_returns():
-    return {"rows": sql(f"SELECT * FROM {CATALOG}.gold.repeat_returns ORDER BY prior_repairs DESC, prior_repair_date DESC")}
+    return {"rows": sql(
+        f"""SELECT * FROM {GOLD}.repeat_returns WHERE prior_repairs >= 2
+            ORDER BY prior_repair_date DESC, prior_repairs DESC LIMIT 1000"""
+    )}
+
+
+# ---------- agents + simulator ----------
+
+@app.get("/api/agents")
+def agents():
+    """What each agent handed to the next one in the most recent job run."""
+    rows = sql(
+        f"""SELECT agent, output_table, rows, summary, run_at FROM {GOLD}.agent_handoffs
+            WHERE run_at >= (SELECT max(run_at) FROM {GOLD}.agent_handoffs) - INTERVAL 30 MINUTES
+            QUALIFY row_number() OVER (PARTITION BY agent, output_table ORDER BY run_at DESC) = 1
+            ORDER BY agent, run_at"""
+    )
+    return {"handoffs": rows}
+
+
+@app.get("/api/simulate/samples")
+def simulate_samples():
+    """A handful of real held-out 2026 repairs that show different paths through the agents."""
+    return {"samples": sql(
+        f"""WITH e AS (
+              SELECT e.*, o.serial, r.prior_repairs,
+                     CASE WHEN e.level_used = 'catalog+symptom' AND e.hit_at_1 THEN 'Specific match, correct'
+                          WHEN e.level_used = 'family+symptom' AND e.hit_at_1 THEN 'Family + symptom match, correct'
+                          WHEN r.prior_repairs >= 2 THEN 'Repeat-return unit'
+                          WHEN e.is_vague AND e.hit_at_3 THEN 'Vague complaint, still in top 3'
+                          WHEN NOT e.hit_at_3 THEN 'Missed: actual cause not in top 3'
+                          WHEN NOT e.hit_at_1 AND e.hit_at_3 THEN 'Right cause ranked 2nd or 3rd' END AS story
+              FROM {GOLD}.eval_results e
+              JOIN {SILVER}.repair_orders_clean o USING (order_number, line_number)
+              LEFT JOIN {GOLD}.repeat_returns r ON r.serial = o.serial
+            )
+            SELECT story, order_number, line_number, catalog, family, symptom
+            FROM e WHERE story IS NOT NULL
+            QUALIFY row_number() OVER (PARTITION BY story ORDER BY hash(order_number, line_number)) <= 2
+            ORDER BY story"""
+    )}
+
+
+def _causes_parts(order_number: str, line_number: str):
+    causes = sql(
+        f"SELECT cause FROM {SILVER}.repair_cause WHERE order_number = :o AND line_number = :l ORDER BY cause",
+        {"o": order_number, "l": line_number},
+    )
+    items = sql(
+        f"SELECT kind, item FROM {SILVER}.repair_parts WHERE order_number = :o AND line_number = :l ORDER BY kind, item",
+        {"o": order_number, "l": line_number},
+    )
+    return (
+        [c["cause"] for c in causes],
+        [i["item"] for i in items if i["kind"] == "part"],
+        [i["item"] for i in items if i["kind"] == "area"],
+    )
+
+
+def _family_insight(family: str | None):
+    if not family:
+        return None
+    rows = sql(f"SELECT * FROM {GOLD}.family_insights WHERE family = :f", {"f": family})
+    return rows[0] if rows else None
+
+
+@app.get("/api/simulate/{order_number}/{line_number}")
+def simulate_order(order_number: str, line_number: str):
+    # Agent 1 keeps the original report fields (PO numbers masked), so the app never reads the raw SAP table
+    raw = sql(
+        f"""SELECT order_number, line_number, submit_date AS order_submit_date, sap_status, catalog, part_description,
+                   raw_serial_number AS serial_number, raw_failure_details AS failure_details,
+                   raw_cause_code AS probable_cause_code, left(parts_replaced, 300) AS parts_replaced, affected_areas, depot
+            FROM {SILVER}.repair_orders_clean
+            WHERE order_number = :o AND line_number = :l""",
+        {"o": order_number, "l": line_number},
+    )
+    if not raw:
+        raise HTTPException(404, "Order line not found (service SKUs are skipped by Agent 1).")
+    clean = sql(
+        f"""SELECT catalog, family, symptom, is_vague, failure_text, serial, submit_date, repair_complete_date
+            FROM {SILVER}.repair_orders_clean WHERE order_number = :o AND line_number = :l""",
+        {"o": order_number, "l": line_number},
+    )
+    if not clean:
+        raise HTTPException(404, "Agent 1 skipped this line (service SKU, not hardware).")
+    c = clean[0]
+    causes, parts, areas = _causes_parts(order_number, line_number)
+    card = triage(TriageRequest(catalog=c["catalog"], serial=c["serial"], failure_text=raw[0]["failure_details"]))
+    if card.get("found"):
+        # Replaying a past order: only repairs finished before this unit arrived count as a repeat return
+        # (the live warning would otherwise point at this very repair).
+        prior = sql(
+            f"""SELECT order_number, repair_complete_date, count(*) OVER () AS n
+                FROM {SILVER}.repair_orders_clean
+                WHERE serial = :serial AND length(serial) >= 5 AND repair_complete_date < :submitted
+                ORDER BY repair_complete_date DESC LIMIT 1""",
+            {"serial": c["serial"], "submitted": c["submit_date"]},
+        ) if c["serial"] and c["submit_date"] else []
+        card["repeat_warning"] = (
+            f"REPEAT RETURN: serial {c['serial']} had {prior[0]['n']} earlier repair(s); the last finished "
+            f"{prior[0]['repair_complete_date']} (order {prior[0]['order_number']}), before this unit arrived."
+            if prior else None
+        )
+    ev = sql(
+        f"""SELECT predicted_top3, actual_causes, level_used, n, confidence, hit_at_1, hit_at_3, baseline_cause, baseline_hit
+            FROM {GOLD}.eval_results WHERE order_number = :o AND line_number = :l""",
+        {"o": order_number, "l": line_number},
+    )
+    return {
+        "mode": "order",
+        "raw": raw[0],
+        "agent1": {**c, "causes": causes, "parts": parts, "areas": areas},
+        "agent2": card,
+        "agent3": {"eval": ev[0] if ev else None, "family": _family_insight(c["family"])},
+    }
+
+
+@app.post("/api/simulate/custom")
+def simulate_custom(req: TriageRequest):
+    if not req.catalog.strip():
+        raise HTTPException(400, "Catalog number is required.")
+    a1 = sql(
+        f"""SELECT upper(trim(:catalog)) AS catalog,
+                   {GOLD}.lookup_family(:catalog) AS family,
+                   nullif({GOLD}.clean_failure_text(:failure_text), '') AS failure_text,
+                   {GOLD}.classify_symptom({GOLD}.clean_failure_text(:failure_text)) AS symptom,
+                   nullif(regexp_replace(upper(trim(coalesce(:serial, ''))), '^0+', ''), '') AS serial""",
+        {"catalog": req.catalog, "serial": req.serial or "", "failure_text": req.failure_text or ""},
+    )[0]
+    a1["is_vague"] = a1["symptom"] is None
+    card = triage(req)
+    return {
+        "mode": "custom",
+        "raw": {"catalog": req.catalog, "serial_number": req.serial, "failure_details": req.failure_text},
+        "agent1": a1,
+        "agent2": card,
+        "agent3": {"eval": None, "family": _family_insight(a1["family"])},
+    }
 
 
 # ---------- assistant (Agent Bricks / serving endpoint) ----------

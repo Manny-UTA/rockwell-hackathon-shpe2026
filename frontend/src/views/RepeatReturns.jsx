@@ -20,18 +20,19 @@ export default function RepeatReturns() {
     <div className="card">
       <div className="toolbar">
         <input placeholder="Search serial, order, cause…" value={filter} onChange={(e) => setFilter(e.target.value)} />
-        <span className="muted">{shown.length} units</span>
+        <span className="muted">{shown.length} units repaired 2+ times, most recent first</span>
       </div>
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>Serial</th><th>Prior repairs</th><th>Last order</th><th>Last repair date</th><th>Prior cause</th><th>Parts replaced</th></tr>
+            <tr><th>Serial</th><th>Catalog</th><th>Repairs</th><th>Last order</th><th>Last repair</th><th>Last cause</th><th>Parts replaced</th></tr>
           </thead>
           <tbody>
             {shown.map((r) => (
               <tr key={r.serial}>
                 <td><b>{r.serial}</b></td>
-                <td><span className={`badge ${Number(r.prior_repairs) > 1 ? 'bad' : 'pending'}`}>{r.prior_repairs}×</span></td>
+                <td>{r.catalog}</td>
+                <td><span className={`badge ${Number(r.prior_repairs) > 2 ? 'bad' : 'pending'}`}>{r.prior_repairs}×</span></td>
                 <td>{r.prior_order_number}</td>
                 <td>{r.prior_repair_date}</td>
                 <td>{r.prior_cause}</td>

@@ -4,6 +4,7 @@
 #   (cd frontend && npm run build)        # build the UI first
 #   databricks bundle validate
 #   databricks bundle deploy
+#   databricks bundle run repair_triage_agents   # rebuild silver_real/gold_real (Agent 1 -> 2 -> 3)
 #   databricks bundle run repair_triage_app
 
 bundle:
@@ -35,6 +36,31 @@ resources:
           serving_endpoint:
             name: mas-65748dd7-endpoint
             permission: CAN_QUERY
+
+  jobs:
+    repair_triage_agents:
+      name: repair-triage-agents
+      description: "Agent 1 (extract SAP repair lines) -> Agent 2 (patterns + recommendations) -> Agent 3 (evaluation + dashboard insights). Writes ultraviolet.silver_real / gold_real."
+      tasks:
+        - task_key: agent1_extract
+          sql_task:
+            warehouse_id: 6e4f969ac71d3b26
+            file:
+              path: ./pipeline/agent1_extract.sql
+        - task_key: agent2_patterns
+          depends_on:
+            - task_key: agent1_extract
+          sql_task:
+            warehouse_id: 6e4f969ac71d3b26
+            file:
+              path: ./pipeline/agent2_patterns.sql
+        - task_key: agent3_insights
+          depends_on:
+            - task_key: agent2_patterns
+          sql_task:
+            warehouse_id: 6e4f969ac71d3b26
+            file:
+              path: ./pipeline/agent3_insights.sql
 
 targets:
   dev:

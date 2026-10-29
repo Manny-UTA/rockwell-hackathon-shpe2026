@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import Markdown from 'react-markdown'
 import { api } from '../api'
 
 const STARTERS = [
-  'Triage catalog R2094BM02S/D with an E39 fault on power up',
-  'Has serial SN-K6-001 been repaired before?',
+  'Triage catalog R2711PT15C22D9P/A, touchscreen not responding',
+  'What are the most common causes for PanelView Plus repairs?',
   'Which product families have the most repair orders?',
 ]
 
@@ -14,7 +15,9 @@ export default function Chat() {
   const [error, setError] = useState(null)
   const bottom = useRef(null)
 
-  useEffect(() => bottom.current?.scrollIntoView({ behavior: 'smooth' }), [messages, loading])
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   async function send(e, preset) {
     e?.preventDefault()
@@ -47,7 +50,9 @@ export default function Chat() {
           </div>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`bubble ${m.role}`}>{m.content}</div>
+          <div key={i} className={`bubble ${m.role}`}>
+            {m.role === 'assistant' ? <Markdown>{m.content}</Markdown> : m.content}
+          </div>
         ))}
         {loading && <div className="bubble assistant typing">Checking repair history…</div>}
         <div ref={bottom} />

@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { api } from '../api'
 
 const EXAMPLES = [
-  { label: 'Kinetix fault', catalog: 'R2094BM02S/D', serial: '', failure_text: 'E39 fault on power up' },
-  { label: 'Repeat unit', catalog: 'R2094BM02S/D', serial: 'SN-K6-001', failure_text: 'Bus overvoltage fault' },
-  { label: 'Vague report', catalog: 'R1394AM07/B', serial: '', failure_text: '' },
+  { label: 'PanelView touchscreen', catalog: 'R2711PT15C22D9P/A', serial: '', failure_text: 'Touchscreen not responding' },
+  { label: 'Kinetix repeat unit', catalog: 'R2094BM02S/D', serial: '44657535', failure_text: 'E39 fault on power up' },
+  { label: 'Servo motor noise', catalog: 'RMPMB2152MSJ74AA/A', serial: '', failure_text: 'Loud grinding noise when running' },
+  { label: 'Vague report', catalog: 'R1756L72/B', serial: '', failure_text: 'Unit is defective' },
 ]
 
 export default function Triage() {
@@ -45,15 +46,15 @@ export default function Triage() {
           <datalist id="catalogs">
             {catalogs.map((c) => <option key={c.catalog} value={c.catalog}>{c.family}</option>)}
           </datalist>
-          {family && <span className="hint">{family}</span>}
+          {family && <span className="hint">✓ {family}</span>}
         </label>
         <label>
-          Serial number <span className="muted">(optional)</span>
-          <input value={form.serial} onChange={set('serial')} placeholder="e.g. SN-K6-001" />
+          <span>Serial number <span className="muted">(optional)</span></span>
+          <input value={form.serial} onChange={set('serial')} placeholder="e.g. 44657535" />
         </label>
         <label>
-          Customer failure description <span className="muted">(optional)</span>
-          <textarea rows={3} value={form.failure_text} onChange={set('failure_text')} placeholder="e.g. E39 fault on power up" />
+          <span>Customer failure description <span className="muted">(optional)</span></span>
+          <textarea rows={3} value={form.failure_text} onChange={set('failure_text')} placeholder="e.g. Touchscreen not responding" />
         </label>
         <button className="primary" disabled={loading}>{loading ? 'Triaging…' : 'Get triage card'}</button>
         <div className="examples">
@@ -79,7 +80,7 @@ export default function Triage() {
   )
 }
 
-function TriageCard({ card }) {
+export function TriageCard({ card }) {
   return (
     <>
       <div className="card-head">

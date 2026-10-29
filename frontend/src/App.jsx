@@ -4,12 +4,18 @@ import Triage from './views/Triage'
 import Chat from './views/Chat'
 import Accuracy from './views/Accuracy'
 import RepeatReturns from './views/RepeatReturns'
+import Patterns from './views/Patterns'
+import Simulator from './views/Simulator'
 
 const TABS = [
   { id: 'triage', label: 'Triage', icon: '🔧', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Triage,
     blurb: 'Enter an incoming unit to get likely causes, parts to stage, and areas to inspect.' },
+  { id: 'simulator', label: 'Simulator', icon: '🔁', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Simulator,
+    blurb: 'Follow one repair through the three agents: extract, find patterns, and check the result.' },
   { id: 'chat', label: 'Assistant', icon: '💬', needs: 'chat', env: 'AGENT_ENDPOINT', View: Chat,
     blurb: 'Ask about a unit, repair history, or depot operations.' },
+  { id: 'patterns', label: 'Patterns', icon: '🧩', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Patterns,
+    blurb: 'Historical failure causes and the parts used to fix them, by product family.' },
   { id: 'accuracy', label: 'Accuracy', icon: '📊', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Accuracy,
     blurb: 'How often the triage card predicted the actual cause, compared with the baseline.' },
   { id: 'repeats', label: 'Repeat Returns', icon: '↩️', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: RepeatReturns,
