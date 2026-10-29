@@ -15,7 +15,7 @@ For how the triage percentages themselves are calculated, see [triage-calculatio
  Technician /         │   Databricks App: repair-triage-ui                                            │
  manager browser ───► │   ┌──────────────────────┐      SQL (parameterized)    ┌───────────────────┐  │
                       │   │ React UI (static)    │ ───► FastAPI /api/* ──────► │ SQL warehouse     │  │
-                      │   │ 6 tabs               │                             │ Serverless Starter│  │
+                      │   │ 7 tabs               │                             │ Serverless Starter│  │
                       │   └──────────────────────┘      /api/chat              └─────────┬─────────┘  │
                       │                                    │                             │            │
                       │                                    ▼                             ▼            │
@@ -67,6 +67,7 @@ Hackthon/
 │           ├── Triage.jsx        # Intake form + TriageCard (also reused by Simulator)
 │           ├── Simulator.jsx     # Agent flow + step-through of one repair
 │           ├── Chat.jsx          # Assistant chat (markdown replies)
+│           ├── Recommendations.jsx # Manual procedure per cause + family risk scorecard
 │           ├── Patterns.jsx      # Causes / parts / areas by family
 │           ├── Accuracy.jsx      # KPI tiles, accuracy by match level, case table
 │           └── RepeatReturns.jsx # Serials repaired 2+ times
@@ -92,7 +93,8 @@ hint instead of breaking if that feature's env var is missing.
 
 | Tab | View file | Calls | Shows |
 |---|---|---|---|
-| 🔧 **Triage** | `Triage.jsx` | `GET /api/catalogs`, `POST /api/triage` | Intake form (catalog autocomplete, serial, complaint) → triage card: top 3 causes with %, parts to stage, areas to inspect, confidence, repeat-return warning |
+| 🔧 **Triage** | `Triage.jsx` | `GET /api/catalogs`, `POST /api/triage` | Intake form (catalog autocomplete, serial, complaint) → triage card: top 3 causes with %, parts to stage, areas to inspect, confidence, repeat-return warning, manual steps per cause |
+| 🛠️ **Recommendations** | `Recommendations.jsx` | `GET /api/recommendations` | Family picker → each cause's share with the matched troubleshooting-manual procedure (labeled *synthetic*), the family's risk scorecard vs depot averages, and its held-out accuracy |
 | 🔁 **Simulator** | `Simulator.jsx` | `GET /api/agents`, `GET /api/simulate/samples`, `GET /api/simulate/{order}/{line}`, `POST /api/simulate/custom` | Agent pipeline with live handoff counts; step one real 2026 repair (or a typed-in unit) through raw report → Agent 1 → Agent 2 → Agent 3 |
 | 💬 **Assistant** | `Chat.jsx` | `POST /api/chat` | Chat with the supervisor agent; starter questions; markdown answers |
 | 🧩 **Patterns** | `Patterns.jsx` | `GET /api/patterns` | Family picker → root-cause shares, parts replaced, areas affected |
@@ -114,7 +116,8 @@ uses **named parameters** (`:catalog`, `:serial`…), so user input is never con
 |---|---|---|---|
 | GET | `/api/config` | env vars | App title and which features are enabled |
 | GET | `/api/catalogs` | `silver_real.repair_orders_clean` | Catalogs with ≥ 5 orders (max 2,000) + family, for autocomplete |
-| POST | `/api/triage` | `gold_real.triage_card()` | Triage card: family, symptom, confidence, level, cases, repeat warning, top 3 causes with parts/areas |
+| POST | `/api/triage` | `gold_real.triage_card()` | Triage card: family, symptom, confidence, level, cases, repeat warning, top 3 causes with parts/areas and a `recommendation` object (manual section, title, matched area, steps, source) |
+| GET | `/api/recommendations?family=` | `gold_real.manual_recommendations`, `family_insights`, `eval_results` | Families, causes with manual steps, family scorecard, depot-wide averages, family top-1/top-3 accuracy |
 | GET | `/api/patterns` | `gold_real.triage_patterns`, `parts_by_cause` | Family-level cause shares, parts and areas (families with ≥ 50 labeled cases) |
 | GET | `/api/accuracy` | `gold_real.eval_results` | Summary rates, rates by match level, latest 300 cases |
 | GET | `/api/repeat-returns` | `gold_real.repeat_returns` | Serials with ≥ 2 repairs, most recent first (max 1,000) |
@@ -151,6 +154,8 @@ uses **named parameters** (`:catalog`, `:serial`…), so user input is never con
 | `gold_real.eval_results` | Agent 3 | 1 row per labeled 2026 line | Accuracy tab, Simulator, dashboard |
 | `gold_real.family_insights` | Agent 3 | 1 row per family (scorecard) | Simulator, dashboard |
 | `gold_real.monthly_trends` | Agent 3 | month × family × cause | dashboard |
+| `gold_real.troubleshooting_manual` | Agent 3 | 1 row per manual step (39 steps, 8 sections keyed by area × cause category) | manual_recommendations |
+| `gold_real.manual_recommendations` | Agent 3 | family × cause → matched manual section + steps (432 rows; 109 matched, rest fall back to the general protocol) | Recommendations tab, triage card, Genie Agent 3 space |
 | `gold_real.agent_handoffs` | all agents | 1 row per agent output per run | Simulator |
 
 ### Functions (`gold_real`)
@@ -181,7 +186,7 @@ Each agent reads only the previous agent's tables and appends to `gold_real.agen
 |---|---|---|---|---|
 | **1 · Extract** | `agent1_extract.sql` | raw SAP | `silver_real.*` | Drop service SKUs; dedupe repeated (order, line) keys; derive family, symptom, serial; clean complaint; flag repair notes; split + normalize causes; standardize parts (18 types) and areas; mask PO numbers in the raw text it keeps |
 | **2 · Patterns** | `agent2_patterns.sql` | `silver_real.*` | `gold_real` patterns, parts, repeat returns, recommendations, `triage` / `triage_card` | Count causes at 4 levels; train-only copy for evaluation; lift-ranked parts/areas; plain-language recommendations |
-| **3 · Insights** | `agent3_insights.sql` | Agent 2's tables | `eval_results`, `family_insights`, `monthly_trends` | Score every labeled 2026 line with 2023–2025 patterns; family scorecards (volume, top cause, no-problem-found %, repeats, cycle time, price) |
+| **3 · Insights** | `agent3_insights.sql` | Agent 2's tables | `eval_results`, `family_insights`, `monthly_trends`, `troubleshooting_manual`, `manual_recommendations` | Score every labeled 2026 line with 2023–2025 patterns; family scorecards (volume, top cause, no-problem-found %, repeats, cycle time, price); match each family × cause to a manual procedure via its dominant affected-area category |
 
 Run options:
 
@@ -190,6 +195,15 @@ databricks bundle run repair_triage_agents          # as a Databricks job (recom
 .venv/bin/python pipeline/run.py                    # same SQL, from your laptop
 .venv/bin/python pipeline/run.py --only agent2_patterns
 ```
+
+### Troubleshooting manual (recommendations)
+
+The step-by-step procedures come from the **Synthetic Troubleshooting Manual** (a hackathon stand-in, not Rockwell
+documentation, from `/Volumes/prism/shpe/workingarea/lifecycle/stopgap_data/`). Its 39 steps are embedded as `VALUES`
+in `agent3_insights.sql`, so the job never reads the volume. For each family × cause, Agent 3 takes the dominant
+affected-area category from `parts_by_cause`, maps it to a manual section with an explicit regex map, and falls back to
+the general protocol when nothing matches. Every place the steps appear in the app labels them as synthetic, because
+all the other numbers come from real SAP data.
 
 ---
 
