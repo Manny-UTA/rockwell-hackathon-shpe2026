@@ -1,0 +1,12 @@
+command: ["python", "app.py"]
+
+env:
+  - name: APP_TITLE
+    value: "Repair Triage"
+  - name: UC_CATALOG
+    value: "ultraviolet"
+  # valueFrom names must match the app resources in databricks.yml
+  - name: DATABRICKS_WAREHOUSE_ID
+    valueFrom: sql-warehouse
+  - name: AGENT_ENDPOINT
+    valueFrom: agent-endpoint

@@ -1,0 +1,42 @@
+# Databricks Asset Bundle for the Repair Triage app.
+# Workspace ID: 7474652709340945
+#
+#   (cd frontend && npm run build)        # build the UI first
+#   databricks bundle validate
+#   databricks bundle deploy
+#   databricks bundle run repair_triage_app
+
+bundle:
+  name: repair-triage
+
+workspace:
+  host: https://dbc-45c9154d-c76b.cloud.databricks.com
+
+sync:
+  exclude:
+    - frontend/node_modules
+    - frontend/src
+    - .venv
+    - "**/__pycache__"
+
+resources:
+  apps:
+    repair_triage_app:
+      name: repair-triage-ui
+      description: "Technician triage cards, manager accuracy view, and the triage assistant"
+      source_code_path: .
+      # Names must match the valueFrom keys in app.yaml
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: 6e4f969ac71d3b26 # Serverless Starter Warehouse
+            permission: CAN_USE
+        - name: agent-endpoint
+          serving_endpoint:
+            name: mas-65748dd7-endpoint
+            permission: CAN_QUERY
+
+targets:
+  dev:
+    mode: development
+    default: true
