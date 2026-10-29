@@ -6,6 +6,7 @@ import Accuracy from './views/Accuracy'
 import RepeatReturns from './views/RepeatReturns'
 import Patterns from './views/Patterns'
 import Simulator from './views/Simulator'
+import Recommendations from './views/Recommendations'
 
 const TABS = [
   { id: 'triage', label: 'Triage', icon: '🔧', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Triage,
@@ -14,6 +15,8 @@ const TABS = [
     blurb: 'Follow one repair through the three agents: extract, find patterns, and check the result.' },
   { id: 'chat', label: 'Assistant', icon: '💬', needs: 'chat', env: 'AGENT_ENDPOINT', View: Chat,
     blurb: 'Ask about a unit, repair history, or depot operations.' },
+  { id: 'recommendations', label: 'Recommendations', icon: '🛠️', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Recommendations,
+    blurb: 'What to do for each likely cause in a product family, from the synthetic troubleshooting manual, with the family\'s risk scorecard.' },
   { id: 'patterns', label: 'Patterns', icon: '🧩', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Patterns,
     blurb: 'Historical failure causes and the parts used to fix them, by product family.' },
   { id: 'accuracy', label: 'Accuracy', icon: '📊', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Accuracy,

@@ -5,6 +5,7 @@
   /api/chat            - chat with the Agent Bricks supervisor endpoint
   /api/accuracy        - manager view: eval_results + summary KPIs
   /api/repeat-returns  - units that came back after a prior repair
+  /api/recommendations - what to do per family + cause, with the family's risk scorecard and accuracy
   /api/agents          - what each agent (extract -> patterns -> insights) handed off in the last job run
   /api/simulate/...    - walk one real (or typed-in) repair through the three agents
 
@@ -12,6 +13,7 @@ Inside a Databricks App, WorkspaceClient() authenticates as the app's service
 principal. Locally it uses your ~/.databrickscfg profile.
 """
 
+import json
 import os
 from pathlib import Path
 from typing import Any
@@ -103,6 +105,15 @@ def triage(req: TriageRequest):
     if not rows:
         return {"found": False}
     first = rows[0]
+    # Agent 3's procedure from the synthetic troubleshooting manual for each predicted cause in this family
+    recs = {
+        r["cause"]: _manual_rec(r)
+        for r in sql(
+            f"""SELECT cause, manual_section, section_title, matched_area, to_json(steps) AS steps
+                FROM {GOLD}.manual_recommendations WHERE family = :f""",
+            {"f": first["family"]},
+        )
+    } if first["family"] else {}
     return {
         "found": True,
         "family": first["family"],
@@ -118,10 +129,64 @@ def triage(req: TriageRequest):
                 "share_pct": float(r["share_pct"] or 0),
                 "parts": r["parts_to_stage"],
                 "areas": r["areas_to_inspect"],
+                "recommendation": recs.get(r["cause"]),
             }
             for r in rows
         ],
     }
+
+
+MANUAL_SOURCE = "Synthetic Troubleshooting Manual (ZS hackathon stand-in, not Rockwell documentation)"
+
+
+def _manual_rec(r: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "section": int(r["manual_section"]) if r["manual_section"] else None,
+        "title": r["section_title"],
+        "matched_area": r["matched_area"],
+        "steps": json.loads(r["steps"] or "[]"),
+        "source": MANUAL_SOURCE,
+    }
+
+
+@app.get("/api/recommendations")
+def recommendations(family: str | None = None):
+    """Agent 3: synthetic-manual procedure per cause, with the family's risk scorecard and held-out accuracy."""
+    families = sql(
+        f"""SELECT family, order_lines, labeled_lines FROM {GOLD}.family_insights
+            WHERE family IN (SELECT DISTINCT family FROM {GOLD}.manual_recommendations)
+            ORDER BY order_lines DESC"""
+    )
+    if not families:
+        return {"families": []}
+    family = family or families[0]["family"]
+    recs = [
+        {"cause": r["cause"], "cases": int(r["cases"]), "family_cases": int(r["family_cases"]),
+         "share_pct": float(r["share_pct"]), "area_share_pct": r["area_share_pct"], **_manual_rec(r)}
+        for r in sql(
+            f"""SELECT cause, cases, family_cases, share_pct, manual_section, section_title, matched_area,
+                       area_share_pct, to_json(steps) AS steps
+                FROM {GOLD}.manual_recommendations WHERE family = :f ORDER BY share_pct DESC""",
+            {"f": family},
+        )
+    ]
+    insight = _family_insight(family)
+    # Depot-wide averages, weighted by volume, so each family's risk numbers have a reference point
+    depot = sql(
+        f"""SELECT round(sum(no_problem_found_pct * labeled_lines) / sum(labeled_lines), 1) AS no_problem_found_pct,
+                   round(sum(vague_complaint_pct * order_lines) / sum(order_lines), 1) AS vague_complaint_pct,
+                   percentile_approx(median_cycle_days, 0.5) AS median_cycle_days
+            FROM {GOLD}.family_insights WHERE labeled_lines > 0"""
+    )[0]
+    accuracy = sql(
+        f"""SELECT count(*) AS n,
+                   round(100 * avg(CAST(hit_at_1 AS INT)), 1) AS top1,
+                   round(100 * avg(CAST(hit_at_3 AS INT)), 1) AS top3
+            FROM {GOLD}.eval_results WHERE family = :f""",
+        {"f": family},
+    )[0]
+    return {"families": families, "family": family, "recommendations": recs,
+            "insight": insight, "depot": depot, "accuracy": accuracy}
 
 
 # ---------- manager views ----------

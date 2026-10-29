@@ -105,7 +105,21 @@
   .todo { margin-top: 22px; font-size: 17px; line-height: 1.6; color: var(--slate); }
   .todo b { color: var(--graphite); }
 
-  /* 5. Proof */
+
+  /* 5. Recommendations */
+  .recs { display: grid; grid-template-columns: 1.35fr 1fr; gap: 32px; align-items: center; margin-block: auto; }
+  .proc .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--teal); text-transform: uppercase; margin-bottom: 4px; }
+  .proc .sec { font-size: 21px; font-weight: 800; margin-bottom: 14px; }
+  .proc ol { padding-left: 22px; font-size: 16.5px; line-height: 1.5; color: var(--slate); }
+  .proc li { margin-bottom: 6px; }
+  .synth { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8a5a00; background: #fbe9c4; border-radius: 999px; padding: 4px 10px; margin-top: 14px; }
+  .risk .row2 { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--fog); font-size: 18px; }
+  .risk .row2:last-of-type { border-bottom: 0; }
+  .risk .val { font-size: 26px; font-weight: 800; }
+  .risk .val.up { color: var(--red); }
+  .risk .ref { font-size: 14px; color: var(--steel); }
+
+  /* 6. Proof */
   .proof { display: grid; grid-template-columns: 1.45fr 1fr; gap: 32px; align-items: center; margin-block: auto; }
   .chart-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
   .cols { display: flex; align-items: flex-end; gap: 36px; height: 360px; padding: 0 20px; border-bottom: 2px solid var(--fog); }
@@ -207,7 +221,7 @@
       <div class="card agent">
         <div class="head"><div class="icon" style="background:var(--amber)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 13l2 2 4-4"/></svg></div>
           <div><div class="n">Agent 3</div><div class="t">Score + output</div></div></div>
-        <p><code>triage_card()</code>: top 3 causes, %, case counts, parts, areas, repeat warning, confidence. Scored on a 2026 holdout.</p>
+        <p><code>triage_card()</code> plus what to do from the troubleshooting manual, family risk scorecards and dashboards. Scored on a 2026 holdout.</p>
       </div>
     </div>
     <div class="supervisor">
@@ -243,7 +257,37 @@
     <span class="pageno">4</span>
   </section>
 
-  <!-- 5. Proof -->
+  <!-- 5. Recommendations -->
+  <section class="slide" data-notes="This is the recommendation part, Agent 3. For each likely cause it gives the technician a step-by-step procedure, matched by cause and by the area technicians most often report for that product family. For the R1394 unit, Component Failure on the power board maps to the PCBA component-failure procedure: lockout, visual inspection, check the rails, test the suspect component, repair at board level, and re-run the functional test. One honesty point: the procedures come from a synthetic troubleshooting manual, a stand-in, because real repair manuals weren't available. The pipeline is ready for the real manual. Next to it is the family risk scorecard: Ultra 1394 has twice the depot's No Problem Found rate and three times the repair cycle time, so managers know where to look. It's all in the app, the Genie assistant and the dashboard.">
+    <p class="kicker">Recommendations · Agent 3</p>
+    <h2>Each likely cause comes with what to do next</h2>
+    <div class="recs">
+      <div class="card proc">
+        <p class="hdr">R1394 unit · #1 Component Failure · PCBA power board</p>
+        <p class="sec">Manual §1: PCBA / Circuitry, Component Failure</p>
+        <ol>
+          <li>Power down and discharge per lockout/tagout before opening.</li>
+          <li>Inspect the PCBA for scorching, cracked packages, bulging capacitors, cold joints.</li>
+          <li>Check primary power rails for shorts before re-energizing.</li>
+          <li>Confirm a suspect component with an in- or out-of-circuit test.</li>
+          <li>Replace at board level by reference designator, not the whole assembly.</li>
+          <li>Re-run the full functional test before return to service.</li>
+        </ol>
+        <span class="synth">Synthetic manual · hackathon stand-in, not Rockwell docs</span>
+      </div>
+      <div class="card risk">
+        <p class="chart-title">Ultra 1394 risk scorecard vs depot</p>
+        <div class="row2"><span>No Problem Found rate</span><span><span class="val up">14.9%</span> <span class="ref">vs 7.2%</span></span></div>
+        <div class="row2"><span>Median repair cycle</span><span><span class="val up">38 days</span> <span class="ref">vs 12</span></span></div>
+        <div class="row2"><span>Repeat-return serials</span><span><span class="val">160</span></span></div>
+        <div class="row2"><span>Triage top-3 accuracy</span><span><span class="val">78.3%</span> <span class="ref">106 repairs</span></span></div>
+        <p class="facts">The manual covers 67% of labeled cause cases; the rest fall back to the general protocol.</p>
+      </div>
+    </div>
+    <span class="pageno">5</span>
+  </section>
+
+  <!-- 6. Proof -->
   <section class="slide" data-notes="Proof. We built the patterns from 2023 to 2025 only and tested on 1,873 labeled 2026 repairs, so there's no leakage. Always guessing the most common cause gets 45 percent. Our top pick is right 61 percent of the time, and the right cause is in our top three 86 percent of the time. The confidence labels are honest: High beats Medium, which beats Low. Even for vague complaints we still get 86 percent top-three.">
     <p class="kicker">Proof</p>
     <h2>It beats the baseline, and knows when it doesn't know</h2>
@@ -269,10 +313,10 @@
         </div>
       </div>
     </div>
-    <span class="pageno">5</span>
+    <span class="pageno">6</span>
   </section>
 
-  <!-- 6. Impact -->
+  <!-- 7. Impact -->
   <section class="slide dark" data-notes="Why it matters. Almost a million dollars in No Problem Found repairs is the first target. 1,240 units came back within 180 days, and those get flagged the moment they arrive. And 22,120 unlabeled lines can get suggested causes. Next we'd sharpen the symptom classifier, collect more teardown labels where data is thin, and blend in similar-case search. Thank you, happy to take questions.">
     <p class="kicker">Impact</p>
     <h2>What this unlocks for the depot</h2>
@@ -286,11 +330,12 @@
       <ul>
         <li>A sharper symptom classifier: 83% of repairs still triage without a symptom</li>
         <li>More teardown labels where data is thin (Kinetix 6000: 224 of 4,721 lines labeled)</li>
+        <li>Swap the synthetic manual for Rockwell's real repair procedures once they can be shared</li>
         <li>Blend in similar-case search, tuned on 2025 data</li>
       </ul>
     </div>
     <p class="thanks">Thank you · Questions?</p>
-    <span class="pageno">6</span>
+    <span class="pageno">7</span>
   </section>
 </div>
 

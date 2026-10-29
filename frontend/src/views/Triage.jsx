@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import { ManualSteps } from './Recommendations'
 
 const EXAMPLES = [
   { label: 'PanelView touchscreen', catalog: 'R2711PT15C22D9P/A', serial: '', failure_text: 'Touchscreen not responding' },
@@ -108,12 +109,14 @@ export function TriageCard({ card }) {
               {c.parts && <><dt>Stage parts</dt><dd>{c.parts}</dd></>}
               {c.areas && <><dt>Inspect</dt><dd>{c.areas}</dd></>}
             </dl>
+            <ManualSteps rec={c.recommendation} />
           </li>
         ))}
       </ol>
 
       <p className="muted foot">
-        Based on {card.cases} past cases matched at the <b>{card.level}</b> level.
+        Based on {card.cases} past cases matched at the <b>{card.level}</b> level. Procedures are from the synthetic
+        troubleshooting manual (hackathon stand-in, not Rockwell documentation).
       </p>
     </>
   )
