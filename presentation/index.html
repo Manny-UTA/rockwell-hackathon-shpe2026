@@ -6,22 +6,22 @@
 <title>Repair Triage Agent</title>
 <style>
   :root {
-    --graphite: #1c252b;
-    --slate: #2b3a44;
-    --steel: #5b6b76;
-    --mist: #9fb3bf;
-    --fog: #d9dee2;
-    --paper: #eef1f3;
+    --graphite: #1d1d1d;
+    --slate: #2b2b2b;
+    --steel: #636363;
+    --mist: #a8a8a8;
+    --fog: #dcdcdc;
+    --paper: #f2f2f2;
     --white: #ffffff;
-    --amber: #e8a317;
-    --teal: #2f7f7a;
-    --red: #c4513a;
+    --amber: #f58025;
+    --charcoal: #5a5a5a;
+    --red: #cd163f;
     --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; }
   body {
-    background: #0f1519;
+    background: #111111;
     font-family: var(--sans);
     color: var(--graphite);
     overflow: hidden;
@@ -40,7 +40,7 @@
     display: flex; flex-direction: column;
   }
   .slide.active { opacity: 1; pointer-events: auto; }
-  .slide.dark { background: var(--slate); color: var(--white); }
+  .slide.dark { background: var(--slate); border-top: 6px solid var(--red); color: var(--white); }
 
   h1 { font-size: 64px; font-weight: 800; letter-spacing: -1px; line-height: 1.05; }
   h2 { font-size: 36px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 36px; }
@@ -94,8 +94,8 @@
   .intake .quote { font-size: 23px; font-style: italic; margin: 4px 0 26px; }
   .repeat { font-size: 15px; color: var(--red); line-height: 1.45; border-top: 1px solid var(--fog); padding-top: 18px; }
   .demo .arrow svg { fill: var(--amber); width: 28px; height: 28px; }
-  .tcard { border: 1px solid var(--fog); border-radius: 12px; padding: 26px 30px; box-shadow: 0 6px 22px rgba(28,37,43,.10); }
-  .tcard .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--teal); text-transform: uppercase; margin-bottom: 22px; }
+  .tcard { border: 1px solid var(--fog); border-radius: 12px; padding: 26px 30px; box-shadow: 0 6px 22px rgba(29,29,29,.10); }
+  .tcard .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--red); text-transform: uppercase; margin-bottom: 22px; }
   .cause { margin-bottom: 18px; }
   .cause .row { display: flex; justify-content: space-between; font-size: 19px; margin-bottom: 7px; }
   .cause .row b { font-weight: 800; }
@@ -108,11 +108,11 @@
 
   /* 5. Recommendations */
   .recs { display: grid; grid-template-columns: 1.35fr 1fr; gap: 32px; align-items: center; margin-block: auto; }
-  .proc .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--teal); text-transform: uppercase; margin-bottom: 4px; }
+  .proc .hdr { font-size: 14px; font-weight: 800; letter-spacing: 1px; color: var(--red); text-transform: uppercase; margin-bottom: 4px; }
   .proc .sec { font-size: 21px; font-weight: 800; margin-bottom: 14px; }
   .proc ol { padding-left: 22px; font-size: 16.5px; line-height: 1.5; color: var(--slate); }
   .proc li { margin-bottom: 6px; }
-  .synth { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #8a5a00; background: #fbe9c4; border-radius: 999px; padding: 4px 10px; margin-top: 14px; }
+  .synth { display: inline-block; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #a3500f; background: #fde6d3; border-radius: 999px; padding: 4px 10px; margin-top: 14px; }
   .risk .row2 { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--fog); font-size: 18px; }
   .risk .row2:last-of-type { border-bottom: 0; }
   .risk .val { font-size: 26px; font-weight: 800; }
@@ -149,12 +149,12 @@
   #notes {
     position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
     width: min(900px, calc(100vw - 32px));
-    background: rgba(15,21,25,.94); color: #e9eef1; border: 1px solid #33424c; border-radius: 10px;
+    background: rgba(17,17,17,.94); color: #ececec; border: 1px solid #3a3a3a; border-radius: 10px;
     padding: 16px 20px; font-size: 16px; line-height: 1.5; display: none;
   }
   #notes.show { display: block; }
   #notes .lbl { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--amber); margin-bottom: 6px; font-weight: 700; }
-  #help { position: fixed; top: 12px; right: 16px; font-size: 13px; color: #6f818c; transition: opacity 1s; }
+  #help { position: fixed; top: 12px; right: 16px; font-size: 13px; color: #7a7a7a; transition: opacity 1s; }
   #help.gone { opacity: 0; }
   @media print { #notes, #help, #progress { display: none !important; } }
 </style>
@@ -191,7 +191,7 @@
         <div class="note">1,000+ raw cause strings → 13 clean causes</div>
       </div>
       <div class="card stat">
-        <div class="icon" style="background:var(--teal)"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c0-1.9-2.2-3-5-3s-5 1.2-5 3.3c0 4.7 10 2.4 10 7.2 0 2.1-2.2 3.5-5 3.5s-5-1.2-5-3.2"/></svg></div>
+        <div class="icon" style="background:var(--charcoal)"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c0-1.9-2.2-3-5-3s-5 1.2-5 3.3c0 4.7 10 2.4 10 7.2 0 2.1-2.2 3.5-5 3.5s-5-1.2-5-3.2"/></svg></div>
         <div class="big">$996K</div>
         <div class="label">spent on No Problem Found repairs</div>
         <div class="note">1,116 lines where the unit tested fine</div>
@@ -296,16 +296,16 @@
         <p class="chart-title">Accuracy on 1,873 held-out 2026 repairs</p>
         <div class="cols">
           <div class="col"><span class="v">45.1%</span><div class="b" style="height:45.1%;background:var(--steel)"></div></div>
-          <div class="col"><span class="v">61.0%</span><div class="b" style="height:61%;background:var(--amber)"></div></div>
-          <div class="col"><span class="v">86.4%</span><div class="b" style="height:86.4%;background:var(--teal)"></div></div>
+          <div class="col"><span class="v">61.0%</span><div class="b" style="height:61%;background:var(--mist)"></div></div>
+          <div class="col"><span class="v">86.4%</span><div class="b" style="height:86.4%;background:var(--red)"></div></div>
         </div>
         <div class="col-labels"><div>Baseline<br>(always top cause)</div><div>Agent top-1</div><div>Agent top-3</div></div>
       </div>
       <div class="card">
         <p class="chart-title">Top-1 accuracy by confidence label</p>
-        <div class="conf-row"><span>High</span><div class="bar"><i style="width:96.6%;background:var(--teal)"></i></div><b>67.6%</b></div>
+        <div class="conf-row"><span>High</span><div class="bar"><i style="width:96.6%;background:var(--red)"></i></div><b>67.6%</b></div>
         <div class="conf-row"><span>Medium</span><div class="bar"><i style="width:82.6%;background:var(--amber)"></i></div><b>57.8%</b></div>
-        <div class="conf-row"><span>Low</span><div class="bar"><i style="width:19.3%;background:var(--red)"></i></div><b>13.5%</b></div>
+        <div class="conf-row"><span>Low</span><div class="bar"><i style="width:19.3%;background:var(--mist)"></i></div><b>13.5%</b></div>
         <div class="facts">
           <strong>The labels are honest: High &gt; Medium &gt; Low.</strong>
           Vague complaints: 60.3% top-1, 86.3% top-3.<br>
