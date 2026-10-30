@@ -15,7 +15,7 @@ For how the triage percentages themselves are calculated, see [triage-calculatio
  Technician /         │   Databricks App: repair-triage-ui                                            │
  manager browser ───► │   ┌──────────────────────┐      SQL (parameterized)    ┌───────────────────┐  │
                       │   │ React UI (static)    │ ───► FastAPI /api/* ──────► │ SQL warehouse     │  │
-                      │   │ 7 tabs               │                             │ Serverless Starter│  │
+                      │   │ 8 tabs               │                             │ Serverless Starter│  │
                       │   └──────────────────────┘      /api/chat              └─────────┬─────────┘  │
                       │                                    │                             │            │
                       │                                    ▼                             ▼            │
@@ -70,16 +70,19 @@ Hackthon/
 │           ├── Recommendations.jsx # Manual procedure per cause + family risk scorecard
 │           ├── Patterns.jsx      # Causes / parts / areas by family
 │           ├── Accuracy.jsx      # KPI tiles, accuracy by match level, case table
-│           └── RepeatReturns.jsx # Serials repaired 2+ times
+│           ├── RepeatReturns.jsx # Serials repaired 2+ times
+│           └── Improve.jsx       # Live feedback accuracy, data sources, improvement backlog
 ├── pipeline/
 │   ├── agent1_extract.sql    # Agent 1: raw SAP → silver_real
 │   ├── agent2_patterns.sql   # Agent 2: silver_real → patterns, recommendations, triage functions
 │   ├── agent3_insights.sql   # Agent 3: evaluation + dashboard tables
+│   ├── setup_feedback.sql    # One-time: creates gold_real.triage_feedback + the app's write grant (not in the job)
 │   ├── run.py                # Run the 3 agent files locally against the warehouse
 │   └── dashboard.py          # Rebuild + publish the Lakeview dashboard
 ├── docs/
 │   ├── architecture.md       # This file
-│   └── triage-calculation.md # How the card's numbers are computed
+│   ├── triage-calculation.md # How the card's numbers are computed
+│   └── feedback-loop.md      # Technician feedback loop + how to add data sources
 └── presentation/index.html   # 5-minute pitch deck
 ```
 
@@ -93,13 +96,14 @@ hint instead of breaking if that feature's env var is missing.
 
 | Tab | View file | Calls | Shows |
 |---|---|---|---|
-| 🔧 **Triage** | `Triage.jsx` | `GET /api/catalogs`, `POST /api/triage` | Intake form (catalog autocomplete, serial, complaint) → triage card: top 3 causes with %, parts to stage, areas to inspect, confidence, repeat-return warning, manual steps per cause |
+| 🔧 **Triage** | `Triage.jsx` | `GET /api/catalogs`, `POST /api/triage` | Intake form (catalog autocomplete, serial, complaint) → triage card: top 3 causes with %, parts to stage, areas to inspect, confidence, repeat-return warning, manual steps per cause. Below the card, **Close the loop** (`GET /api/causes`, `POST /api/feedback`) lets the technician record the confirmed cause after repair |
 | 🛠️ **Recommendations** | `Recommendations.jsx` | `GET /api/recommendations` | Family picker → each cause's share with the matched troubleshooting-manual procedure (labeled *synthetic*), the family's risk scorecard vs depot averages, and its held-out accuracy |
 | 🔁 **Simulator** | `Simulator.jsx` | `GET /api/agents`, `GET /api/simulate/samples`, `GET /api/simulate/{order}/{line}`, `POST /api/simulate/custom` | Agent pipeline with live handoff counts; step one real 2026 repair (or a typed-in unit) through raw report → Agent 1 → Agent 2 → Agent 3 |
 | 💬 **Assistant** | `Chat.jsx` | `POST /api/chat` | Chat with the supervisor agent; starter questions; markdown answers |
 | 🧩 **Patterns** | `Patterns.jsx` | `GET /api/patterns` | Family picker → root-cause shares, parts replaced, areas affected |
 | 📊 **Accuracy** | `Accuracy.jsx` | `GET /api/accuracy` | Top-1 / top-3 / baseline tiles, accuracy by match level, latest 300 scored cases |
 | ↩️ **Repeat Returns** | `RepeatReturns.jsx` | `GET /api/repeat-returns` | Searchable list of serials repaired 2+ times |
+| 📈 **Improve** | `Improve.jsx` | `GET /api/improvements` | Live top-1/top-3 from technician feedback vs the held-out benchmark, data sources, ranked improvement backlog |
 
 Styling: `index.css` defines color tokens on `:root` with a dark-mode override. The layout collapses to a
 top nav bar and single column under 860px.
@@ -120,6 +124,9 @@ uses **named parameters** (`:catalog`, `:serial`…), so user input is never con
 | GET | `/api/recommendations?family=` | `gold_real.manual_recommendations`, `family_insights`, `eval_results` | Families, causes with manual steps, family scorecard, depot-wide averages, family top-1/top-3 accuracy |
 | GET | `/api/patterns` | `gold_real.triage_patterns`, `parts_by_cause` | Family-level cause shares, parts and areas (families with ≥ 50 labeled cases) |
 | GET | `/api/accuracy` | `gold_real.eval_results` | Summary rates, rates by match level, latest 300 cases |
+| GET | `/api/causes` | `silver_real.repair_cause` | The 14 normalized causes, for the feedback form |
+| POST | `/api/feedback` | writes `gold_real.triage_feedback` | Saves the confirmed cause. The verdict (`top1` / `top3` / `missed`) is computed server-side, and the technician comes from the `X-Forwarded-Email` header |
+| GET | `/api/improvements` | `triage_feedback`, `improvement_backlog`, `repair_orders_clean` | Live feedback accuracy, rows per data source, backlog items |
 | GET | `/api/repeat-returns` | `gold_real.repeat_returns` | Serials with ≥ 2 repairs, most recent first (max 1,000) |
 | GET | `/api/agents` | `gold_real.agent_handoffs` | What each agent handed off in the latest job run |
 | GET | `/api/simulate/samples` | `eval_results`, `repeat_returns` | 12 real 2026 repairs covering different outcomes (correct, missed, vague, repeat…) |
@@ -143,7 +150,8 @@ uses **named parameters** (`:catalog`, `:serial`…), so user input is never con
 
 | Table | Written by | Grain | Used by |
 |---|---|---|---|
-| `silver_real.repair_orders_clean` | Agent 1 | 1 row per order line (deduplicated) | everything downstream, catalogs, simulator |
+| `silver_real.repair_lines_unified` (view) | Agent 1 | Every source mapped to standard columns: SAP + technician feedback (template for future sources) | repair_orders_clean |
+| `silver_real.repair_orders_clean` | Agent 1 | 1 row per order line (deduplicated), with `source_system` | everything downstream, catalogs, simulator |
 | `silver_real.repair_cause` | Agent 1 | 1 row per line × confirmed cause | patterns, evaluation, simulator |
 | `silver_real.repair_parts` | Agent 1 | 1 row per line × part type / affected area | parts_by_cause, repeat_returns, simulator |
 | `gold_real.triage_patterns` | Agent 2 | level × group × cause → cases, total | triage card, Patterns tab, dashboard |
@@ -157,6 +165,8 @@ uses **named parameters** (`:catalog`, `:serial`…), so user input is never con
 | `gold_real.troubleshooting_manual` | Agent 3 | 1 row per manual step (39 steps, 8 sections keyed by area × cause category) | manual_recommendations |
 | `gold_real.manual_recommendations` | Agent 3 | family × cause → matched manual section + steps (432 rows; 109 matched, rest fall back to the general protocol) | Recommendations tab, triage card, Genie Agent 3 space |
 | `gold_real.agent_handoffs` | all agents | 1 row per agent output per run | Simulator |
+| `gold_real.triage_feedback` | the app (`POST /api/feedback`) | 1 row per technician confirmation | Agent 1 (new labels), Improve tab. Created once by `setup_feedback.sql`, **never by the job** |
+| `gold_real.improvement_backlog` (view) | Agent 3 | 1 row per improvement item (weak families, vague intake, NPF cost, missing manual sections, unmapped catalogs, reported misses) | Improve tab |
 
 ### Functions (`gold_real`)
 
@@ -184,9 +194,9 @@ Each agent reads only the previous agent's tables and appends to `gold_real.agen
 
 | Agent | File | Input | Output | Key steps |
 |---|---|---|---|---|
-| **1 · Extract** | `agent1_extract.sql` | raw SAP | `silver_real.*` | Drop service SKUs; dedupe repeated (order, line) keys; derive family, symptom, serial; clean complaint; flag repair notes; split + normalize causes; standardize parts (18 types) and areas; mask PO numbers in the raw text it keeps |
+| **1 · Extract** | `agent1_extract.sql` | raw SAP + technician feedback | `silver_real.*` | Union all sources (SAP wins over feedback for the same order); drop service SKUs; dedupe repeated (order, line) keys; derive family, symptom, serial; clean complaint; flag repair notes; split + normalize causes; standardize parts (18 types) and areas; mask PO numbers in the raw text it keeps |
 | **2 · Patterns** | `agent2_patterns.sql` | `silver_real.*` | `gold_real` patterns, parts, repeat returns, recommendations, `triage` / `triage_card` | Count causes at 4 levels; train-only copy for evaluation; lift-ranked parts/areas; plain-language recommendations |
-| **3 · Insights** | `agent3_insights.sql` | Agent 2's tables | `eval_results`, `family_insights`, `monthly_trends`, `troubleshooting_manual`, `manual_recommendations` | Score every labeled 2026 line with 2023–2025 patterns; family scorecards (volume, top cause, no-problem-found %, repeats, cycle time, price); match each family × cause to a manual procedure via its dominant affected-area category |
+| **3 · Insights** | `agent3_insights.sql` | Agent 2's tables | `eval_results`, `family_insights`, `monthly_trends`, `troubleshooting_manual`, `manual_recommendations`, `improvement_backlog` | Score every labeled 2026 **SAP** line (feedback lines excluded) with 2023–2025 patterns; family scorecards (volume, top cause, no-problem-found %, repeats, cycle time, price); match each family × cause to a manual procedure via its dominant affected-area category |
 
 Run options:
 
@@ -204,6 +214,18 @@ in `agent3_insights.sql`, so the job never reads the volume. For each family × 
 affected-area category from `parts_by_cause`, maps it to a manual section with an explicit regex map, and falls back to
 the general protocol when nothing matches. Every place the steps appear in the app labels them as synthetic, because
 all the other numbers come from real SAP data.
+
+### Feedback loop
+
+```
+Triage card ─► technician confirms actual cause ─► POST /api/feedback ─► gold_real.triage_feedback
+     ▲                                                                          │
+     └── Agent 2 patterns ◄── Agent 1 (repair_lines_unified) ◄── weekly job ◄───┘
+                                         Agent 3 ─► improvement_backlog ─► Improve tab
+```
+
+Confirmed causes become new labeled lines on the next Monday run. The held-out accuracy (`eval_results`) stays on
+SAP ground truth only, so the benchmark numbers don't drift. Details: [feedback-loop.md](feedback-loop.md).
 
 ---
 
@@ -251,7 +273,7 @@ Manager View (real data)"** (`01f1d3a19aa41dce8af01210b93e60f5`), keeping its th
 | Resource | Name | Details |
 |---|---|---|
 | App | `repair-triage-ui` | Source = repo root; resources: warehouse `6e4f969ac71d3b26` (CAN_USE), endpoint `mas-65748dd7-endpoint` (CAN_QUERY) |
-| Job | `repair-triage-agents` | 3 SQL file tasks with `depends_on` chaining, on warehouse `6e4f969ac71d3b26` |
+| Job | `repair-triage-agents` | 3 SQL file tasks with `depends_on` chaining, on warehouse `6e4f969ac71d3b26`; scheduled **Mondays 06:00 America/Chicago**. The `dev` target pauses schedules on every `bundle deploy`, so unpause after deploying (see feedback-loop.md) |
 | Target | `dev` | Development mode (resources are prefixed with your user name) |
 
 `sync.exclude` keeps `node_modules`, `frontend/src`, `.venv` and `__pycache__` out of the upload. Only the
@@ -266,6 +288,7 @@ built `frontend/dist` is deployed.
   - `USE CATALOG` on `ultraviolet`
   - `USE SCHEMA, SELECT` on `silver_real`
   - `USE SCHEMA, SELECT, EXECUTE` on `gold_real`
+  - `SELECT, MODIFY` on **one table only**, `gold_real.triage_feedback` (the app can't change pipeline tables)
   - no access to the raw `shpe` schema (Agent 1 keeps the needed report fields, with PO numbers masked)
 - Users reach the app through Databricks login; only people granted access on the app can open it.
 - All SQL from the browser is parameterized. The browser can't send its own SQL.
@@ -307,4 +330,5 @@ Live app: https://repair-triage-ui-7474652709340945.aws.databricksapps.com
 | Change how symptoms are detected | `classify_symptom` / `has_repair_notes` in `agent1_extract.sql`, then rerun the job |
 | Change the back-off threshold or confidence rules | `triage` / `triage_card` in `agent2_patterns.sql` **and** the matching logic in `eval_results` (`agent3_insights.sql`) so the accuracy stays comparable |
 | Add a dashboard chart | Add a dataset + widget in `pipeline/dashboard.py`, run it |
+| Add a data source (other product lines, archives, future feeds) | One `UNION ALL` branch in `silver_real.repair_lines_unified` (see [feedback-loop.md](feedback-loop.md)) |
 | Point the app at other tables | Set `SILVER_SCHEMA` / `GOLD_SCHEMA` in `app.yaml` and grant the service principal access |

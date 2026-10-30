@@ -7,6 +7,7 @@ import RepeatReturns from './views/RepeatReturns'
 import Patterns from './views/Patterns'
 import Simulator from './views/Simulator'
 import Recommendations from './views/Recommendations'
+import Improve from './views/Improve'
 
 const TABS = [
   { id: 'triage', label: 'Triage', icon: '01', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Triage,
@@ -23,6 +24,8 @@ const TABS = [
     blurb: 'How often the triage card predicted the actual cause, compared with the baseline.' },
   { id: 'repeats', label: 'Repeat Returns', icon: '07', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: RepeatReturns,
     blurb: 'Serial numbers that have come back after a prior repair.' },
+  { id: 'improve', label: 'Improve', icon: '08', needs: 'data', env: 'DATABRICKS_WAREHOUSE_ID', View: Improve,
+    blurb: 'The feedback loop: technicians confirm causes, the agents re-learn weekly, and the backlog shows what to fix next.' },
 ]
 
 export default function App() {

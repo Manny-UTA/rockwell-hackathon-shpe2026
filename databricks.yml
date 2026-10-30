@@ -40,7 +40,13 @@ resources:
   jobs:
     repair_triage_agents:
       name: repair-triage-agents
-      description: "Agent 1 (extract SAP repair lines) -> Agent 2 (patterns + recommendations) -> Agent 3 (evaluation + dashboard insights). Writes ultraviolet.silver_real / gold_real."
+      description: "Agent 1 (extract SAP repair lines + technician feedback) -> Agent 2 (patterns + recommendations) -> Agent 3 (evaluation + dashboard insights + improvement backlog). Writes ultraviolet.silver_real / gold_real."
+      # Feedback loop: every Monday the agents re-learn patterns from new repairs and technician-confirmed causes.
+      # The dev target pauses schedules on deploy; unpause after deploy (see docs/feedback-loop.md).
+      schedule:
+        quartz_cron_expression: "0 0 6 ? * MON"
+        timezone_id: America/Chicago
+        pause_status: UNPAUSED
       tasks:
         - task_key: agent1_extract
           sql_task:

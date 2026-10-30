@@ -94,14 +94,50 @@ RETURN coalesce(upper(p_text) RLIKE 'TESTED (OK|GOOD|FINE)|UNIT TESTED|PASSED (A
 ;
 
 -- ---------------------------------------------------------------------------
+-- Source registry: every repair-history source, mapped to one standard shape.
+-- Agent 1 reads ONLY this view, so onboarding another product line, a legacy archive
+-- (past data) or a new depot feed (future data) is one more UNION ALL branch here;
+-- Agents 2 and 3 pick it up on the next run with no other change.
+-- Standard columns: source_system, order_number, line_number, catalog, part_description,
+-- serial_number, failure_details, probable_cause_code, parts_replaced, affected_areas,
+-- order_submit_date, received_date, repair_complete_date, net_price, sap_status, depot.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW ultraviolet.silver_real.repair_lines_unified
+COMMENT 'Agent 1 source registry: all repair-history sources in one standard shape (SAP economy repairs + technician-confirmed feedback from the app). Add a source = add a UNION ALL branch.'
+AS
+SELECT 'SAP economy repairs' AS source_system,
+       order_number, line_number, catalog, part_description, serial_number, failure_details,
+       probable_cause_code, parts_replaced, affected_areas,
+       order_submit_date, received_date, repair_complete_date, net_price, sap_status, depot
+FROM ultraviolet.shpe.sap_economy_repair_order_lines
+UNION ALL
+-- Feedback loop: causes technicians confirmed in the app after repair. Skipped when the
+-- technician gave an SAP order number that already has a cause code (SAP stays the source of truth).
+SELECT 'Technician feedback',
+       concat('FB-', f.feedback_id), CAST(1 AS BIGINT), f.catalog, CAST(NULL AS STRING), f.serial, f.failure_text,
+       f.actual_cause, CAST(NULL AS STRING), CAST(NULL AS STRING),
+       CAST(f.submitted_at AS DATE), CAST(f.submitted_at AS DATE), CAST(f.submitted_at AS TIMESTAMP_NTZ),
+       CAST(NULL AS DOUBLE), 'Technician feedback', CAST(NULL AS STRING)
+FROM ultraviolet.gold_real.triage_feedback f
+WHERE f.actual_cause IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM ultraviolet.shpe.sap_economy_repair_order_lines s
+                  WHERE s.order_number = f.order_number AND s.probable_cause_code IS NOT NULL)
+-- Template for the next source (e.g. another product line or a pre-2023 archive):
+-- UNION ALL
+-- SELECT 'Legacy archive 2018-2022', ord_no, line_no, catalog_no, descr, serial, complaint,
+--        cause_code, parts, areas, submitted, received, completed, price, status, depot
+-- FROM ultraviolet.shpe.<new_source_table>
+;
+
+-- ---------------------------------------------------------------------------
 -- Silver: cleaned order lines
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE TABLE ultraviolet.silver_real.repair_orders_clean
-COMMENT 'Real data (Agent 1): one row per SAP repair order line (deduplicated) with family, rule-based symptom, normalized serial, raw cause/parts/areas. Built by pipeline/build_real_tables.sql'
+COMMENT 'Real data (Agent 1): one row per repair order line from every registered source (deduplicated) with source_system, family, rule-based symptom, normalized serial, raw cause/parts/areas. Built by pipeline/build_real_tables.sql'
 AS
 WITH src AS (
   SELECT *, ultraviolet.gold_real.clean_failure_text(failure_details) AS clean
-  FROM ultraviolet.shpe.sap_economy_repair_order_lines
+  FROM ultraviolet.silver_real.repair_lines_unified
   WHERE catalog IS NOT NULL
     AND NOT upper(catalog) RLIKE 'PROXY|^CUSTOMER\\.|REFORM'      -- service SKUs, not hardware
   -- The source repeats some (order_number, line_number) keys; keep the most complete copy
@@ -111,6 +147,7 @@ WITH src AS (
   ) = 1
 )
 SELECT
+  source_system,
   order_number,
   CAST(line_number AS INT)                                   AS line_number,
   upper(trim(catalog))                                       AS catalog,
@@ -143,10 +180,16 @@ FROM src
 CREATE OR REPLACE TABLE ultraviolet.silver_real.repair_cause
 COMMENT 'Real data (Agent 1): normalized probable causes, one row per order line per cause'
 AS
-SELECT DISTINCT o.order_number, o.line_number, ultraviolet.gold_real.normalize_cause(trim(c)) AS cause
-FROM ultraviolet.silver_real.repair_orders_clean o
-LATERAL VIEW explode(split(o.raw_cause_code, ',')) t AS c
-WHERE trim(c) != '' AND ultraviolet.gold_real.normalize_cause(trim(c)) IS NOT NULL
+WITH c AS (
+  SELECT o.order_number, o.line_number,
+         -- feedback causes are already one of the normalized causes (validated by the app)
+         CASE WHEN o.source_system = 'Technician feedback' THEN trim(c)
+              ELSE ultraviolet.gold_real.normalize_cause(trim(c)) END AS cause
+  FROM ultraviolet.silver_real.repair_orders_clean o
+  LATERAL VIEW explode(split(o.raw_cause_code, ',')) t AS c
+  WHERE trim(c) != ''
+)
+SELECT DISTINCT order_number, line_number, cause FROM c WHERE cause IS NOT NULL
 ;
 
 -- ---------------------------------------------------------------------------
@@ -190,7 +233,7 @@ WHERE trim(a) != ''
 ;
 
 INSERT INTO ultraviolet.gold_real.agent_handoffs
-SELECT current_timestamp(), '1 Extract', 'silver_real.repair_orders_clean', (SELECT count(*) FROM ultraviolet.silver_real.repair_orders_clean), (SELECT concat(format_number(count(*), 0), ' order lines from ', format_number((SELECT count(*) FROM ultraviolet.shpe.sap_economy_repair_order_lines), 0), ' raw SAP rows; ', format_number(count_if(NOT is_vague), 0), ' with a usable symptom; ', format_number(count_if(has_repair_notes), 0), ' with technician notes held out of symptom; ', format_number(count(DISTINCT family), 0), ' product families') FROM ultraviolet.silver_real.repair_orders_clean)
+SELECT current_timestamp(), '1 Extract', 'silver_real.repair_orders_clean', (SELECT count(*) FROM ultraviolet.silver_real.repair_orders_clean), (SELECT concat(format_number(count(*), 0), ' order lines from ', format_number((SELECT count(*) FROM ultraviolet.shpe.sap_economy_repair_order_lines), 0), ' raw SAP rows + ', format_number(count_if(source_system = 'Technician feedback'), 0), ' technician-confirmed feedback lines; ', format_number(count_if(NOT is_vague), 0), ' with a usable symptom; ', format_number(count_if(has_repair_notes), 0), ' with technician notes held out of symptom; ', format_number(count(DISTINCT family), 0), ' product families') FROM ultraviolet.silver_real.repair_orders_clean)
 ;
 INSERT INTO ultraviolet.gold_real.agent_handoffs
 SELECT current_timestamp(), '1 Extract', 'silver_real.repair_cause', (SELECT count(*) FROM ultraviolet.silver_real.repair_cause), (SELECT concat(format_number(count(DISTINCT order_number, line_number), 0), ' lines with a confirmed cause; ', format_number(count(DISTINCT cause), 0), ' cause categories') FROM ultraviolet.silver_real.repair_cause)

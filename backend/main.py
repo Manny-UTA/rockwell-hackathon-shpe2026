@@ -8,6 +8,9 @@
   /api/recommendations - what to do per family + cause, with the family's risk scorecard and accuracy
   /api/agents          - what each agent (extract -> patterns -> insights) handed off in the last job run
   /api/simulate/...    - walk one real (or typed-in) repair through the three agents
+  /api/causes          - the normalized causes a technician can confirm
+  /api/feedback        - feedback loop: technician confirms the actual cause after repair
+  /api/improvements    - feedback loop: live accuracy from feedback, data sources, improvement backlog
 
 Inside a Databricks App, WorkspaceClient() authenticates as the app's service
 principal. Locally it uses your ~/.databrickscfg profile.
@@ -15,12 +18,13 @@ principal. Locally it uses your ~/.databrickscfg profile.
 
 import json
 import os
+import uuid
 from pathlib import Path
 from typing import Any
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import StatementParameterListItem, StatementState
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -187,6 +191,115 @@ def recommendations(family: str | None = None):
     )[0]
     return {"families": families, "family": family, "recommendations": recs,
             "insight": insight, "depot": depot, "accuracy": accuracy}
+
+
+# ---------- feedback loop ----------
+
+_causes: list[str] | None = None
+
+
+def cause_list() -> list[str]:
+    global _causes
+    if _causes is None:
+        _causes = [r["cause"] for r in sql(
+            f"SELECT cause FROM {GOLD}.triage_patterns WHERE level = 'all' ORDER BY cases DESC"
+        )]
+    return _causes
+
+
+@app.get("/api/causes")
+def causes():
+    return {"causes": cause_list()}
+
+
+class FeedbackRequest(BaseModel):
+    catalog: str
+    serial: str | None = None
+    failure_text: str | None = None
+    order_number: str | None = None
+    predicted: list[str] = []
+    confidence: str | None = None
+    level: str | None = None
+    actual_cause: str
+    manual_helpful: bool | None = None
+    comment: str | None = None
+
+
+def _clip(value: str | None, n: int) -> str | None:
+    value = (value or "").strip()
+    return value[:n] or None
+
+
+@app.post("/api/feedback")
+def feedback(req: FeedbackRequest, request: Request):
+    """Technician confirms the actual cause after repair. Agent 1 learns from it on the next job run."""
+    known = cause_list()
+    if req.actual_cause not in known:
+        raise HTTPException(400, "Pick one of the listed causes.")
+    if not req.catalog.strip():
+        raise HTTPException(400, "Catalog number is required.")
+    predicted = [c for c in req.predicted if c in known][:3]
+    verdict = ("top1" if predicted[:1] == [req.actual_cause]
+               else "top3" if req.actual_cause in predicted else "missed")
+    sql(
+        f"""INSERT INTO {GOLD}.triage_feedback
+            SELECT :id, current_timestamp(), :technician, :order_number, upper(trim(:catalog)),
+                   {GOLD}.lookup_family(:catalog),
+                   {GOLD}.classify_symptom({GOLD}.clean_failure_text(:failure_text)),
+                   nullif(regexp_replace(upper(trim(coalesce(:serial, ''))), '^0+', ''), ''),
+                   :failure_text, from_json(:predicted, 'array<string>'), :confidence, :level,
+                   :actual_cause, :verdict, CAST(:manual_helpful AS BOOLEAN), :comment""",
+        {
+            "id": uuid.uuid4().hex[:12],
+            # Databricks Apps sets this header from the signed-in user; never trust the body for identity
+            "technician": _clip(request.headers.get("x-forwarded-email"), 200),
+            "order_number": _clip(req.order_number, 20),
+            "catalog": _clip(req.catalog, 60),
+            "serial": _clip(req.serial, 40),
+            "failure_text": _clip(req.failure_text, 500),
+            "predicted": json.dumps(predicted),
+            "confidence": req.confidence if req.confidence in ("High", "Medium", "Low") else None,
+            "level": req.level if req.level in ("catalog+symptom", "family+symptom", "family", "all") else None,
+            "actual_cause": req.actual_cause,
+            "verdict": verdict,
+            "manual_helpful": None if req.manual_helpful is None else str(req.manual_helpful).lower(),
+            "comment": _clip(req.comment, 500),
+        },
+    )
+    return {"ok": True, "verdict": verdict}
+
+
+@app.get("/api/improvements")
+def improvements():
+    """The feedback loop at a glance: what technicians reported, what the agents learn from, what to fix next."""
+    fb = sql(
+        f"""SELECT count(*) AS submissions,
+                   count_if(verdict = 'top1') AS top1, count_if(verdict IN ('top1', 'top3')) AS top3,
+                   count_if(verdict = 'missed') AS missed,
+                   count_if(manual_helpful) AS manual_yes, count_if(NOT manual_helpful) AS manual_no,
+                   count_if(submitted_at > (SELECT max(run_at) FROM {GOLD}.agent_handoffs WHERE agent = '1 Extract'))
+                     AS pending
+            FROM {GOLD}.triage_feedback"""
+    )[0]
+    holdout = sql(
+        f"""SELECT count(*) AS n, round(100 * avg(CAST(hit_at_1 AS INT)), 1) AS top1,
+                   round(100 * avg(CAST(hit_at_3 AS INT)), 1) AS top3
+            FROM {GOLD}.eval_results"""
+    )[0]
+    sources = sql(
+        f"""SELECT source_system, count(*) AS lines, count(DISTINCT family) AS families,
+                   CAST(min(submit_date) AS STRING) AS first_date, CAST(max(submit_date) AS STRING) AS last_date
+            FROM {SILVER}.repair_orders_clean GROUP BY source_system ORDER BY lines DESC"""
+    )
+    last_run = sql(f"SELECT CAST(max(run_at) AS STRING) AS run_at FROM {GOLD}.agent_handoffs")[0]["run_at"]
+    backlog = sql(f"SELECT * FROM {GOLD}.improvement_backlog ORDER BY priority LIMIT 40")
+    recent = sql(
+        f"""SELECT CAST(submitted_at AS STRING) AS submitted_at, catalog, family, predicted_top3[0] AS predicted,
+                   actual_cause, verdict, manual_helpful, comment
+            FROM {GOLD}.triage_feedback ORDER BY submitted_at DESC LIMIT 25"""
+    )
+    return {"feedback": fb, "holdout": holdout, "sources": sources, "last_run": last_run,
+            "schedule": "Every Monday 06:00 CT", "backlog": backlog, "recent": recent}
 
 
 # ---------- manager views ----------

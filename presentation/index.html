@@ -98,6 +98,65 @@
   .subtitle::before { content: ""; display: inline-block; width: 44px; height: 4px; background: var(--orange); vertical-align: middle; margin-right: 16px; }
   .footline { font-family: var(--mono); font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: #ffd6cc; }
 
+  /* 1b. Title + problem */
+  .opener .title-wrap { margin: auto 0; }
+  .opener h1 { font-size: 112px; }
+  .opener-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-bottom: 34px; }
+  .opener-stats > div { border-top: 2px solid rgba(255,255,255,.35); padding-top: 16px; }
+  .opener-stats .v { font-family: var(--display); font-stretch: 72%; font-size: 64px; font-weight: 900; line-height: .95; color: #fff; white-space: nowrap; }
+  .opener-stats .l { font-size: 16px; color: #ffe1da; line-height: 1.4; margin-top: 8px; }
+  .slide.opener::after { top: -310px; bottom: auto; right: -300px; width: 470px; height: 470px; }
+  .agent .synth { margin-top: 12px; }
+
+  /* simplified slides */
+  .agents.simple .card { text-align: center; padding: 34px 24px 30px; display: flex; flex-direction: column; align-items: center; }
+  .agents.simple .icon { width: 64px; height: 64px; margin-bottom: 18px; }
+  .agents.simple .icon svg { width: 32px; height: 32px; }
+  .agents.simple .t { font-size: 40px; margin: 4px 0 10px; }
+  .agents.simple p { font-size: 21px; color: var(--slate); }
+  .agents.simple .synth { margin-top: 16px; }
+  .supervisor span { font-size: 19px; }
+  .proof-solo { margin-block: auto; width: 820px; align-self: center; }
+  .proof-solo .cols { height: 340px; gap: 56px; }
+  .proof-solo .col .v { font-size: 64px; }
+  .proof-solo .col-labels { gap: 56px; }
+  .proof-solo .col-labels div { font-size: 21px; color: var(--graphite); }
+  .impact .l { font-size: 22px; }
+  .slide.dark .impact { margin-top: auto; }
+  .slide.dark .impact .v { font-size: 112px; }
+  .slide.dark.impact-slide::after { right: -330px; bottom: -400px; }
+  .nextline { font-size: 24px; color: #fff; }
+  .nextline b { font-family: var(--mono); font-weight: 500; font-size: 15px; letter-spacing: .15em; text-transform: uppercase; color: var(--orange); margin-right: 16px; }
+  .opener-stats .l { font-size: 19px; }
+
+  /* solution architecture */
+  .arch { display: grid; grid-template-columns: 1fr 34px 1.1fr 34px 1.1fr 34px 1.25fr; align-items: center; margin-block: auto; }
+  .lane { display: flex; flex-direction: column; gap: 10px; }
+  .lane-lbl { font-family: var(--mono); font-size: 13px; letter-spacing: .15em; text-transform: uppercase; color: var(--red); margin-bottom: 4px; }
+  .node { background: var(--paper); border: 1px solid var(--fog); border-left: 5px solid var(--slate); border-radius: 4px; padding: 14px 16px; }
+  .node b { display: block; font-family: var(--display); font-stretch: 85%; font-size: 21px; font-weight: 800; text-transform: uppercase; line-height: 1.05; }
+  .node span { display: block; font-size: 15px; color: var(--slate); margin-top: 4px; line-height: 1.3; }
+  .node.hot { border-left-color: var(--orange); background: var(--white); box-shadow: 4px 4px 0 var(--orange); }
+  .node.use { border-left-color: var(--red); background: var(--white); }
+  .down { text-align: center; color: var(--red); font-size: 18px; line-height: 1; margin: -4px 0; }
+  .arch-arrow { display: grid; place-items: center; }
+  .arch-arrow svg { width: 22px; height: 22px; fill: var(--red); }
+  .arch-foot { font-family: var(--mono); font-size: 13px; letter-spacing: .06em; color: var(--steel); text-align: center; margin-bottom: 30px; }
+
+  /* team intro */
+  .team-wrap { margin-block: auto; }
+  .team h1 { font-size: 200px; line-height: .85; }
+  .team-names { margin-top: 34px; font-family: var(--mono); font-size: 26px; font-weight: 500; letter-spacing: .12em; color: #fff; }
+  .slide.dark.team::after { right: -330px; bottom: -420px; }
+  .team-names i { font-style: normal; color: var(--orange); padding: 0 14px; }
+
+  .stack { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 26px; }
+  .stack-lbl { font-family: var(--mono); font-size: 13px; letter-spacing: .15em; text-transform: uppercase; color: var(--red); margin-right: 6px; }
+  .chip-logo { display: flex; align-items: center; gap: 10px; height: 62px; padding: 0 18px; background: #fff; border: 1px solid var(--fog); border-radius: 4px; }
+  .chip-logo img { height: 50px; width: auto; display: block; }
+  .chip-logo img.sq { height: 34px; }
+  .chip-logo span { font-size: 16px; font-weight: 600; color: var(--slate); }
+
   /* 2. Problem */
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-block: auto; }
   .grid3 .card { padding: 36px 32px 40px; }
@@ -180,6 +239,34 @@
   .facts { margin-top: 26px; font-size: 16px; line-height: 1.55; color: var(--slate); }
   .facts strong { color: var(--graphite); display: block; font-size: 17px; margin-bottom: 4px; }
 
+  /* 6. Feedback loop */
+  .loopwrap { display: grid; grid-template-columns: 470px 1fr; gap: 56px; align-items: center; margin-block: auto; }
+  .ring { position: relative; width: 450px; height: 450px; transform: scale(.9); margin: -40px 0 -20px; }
+  .ring svg.track { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .ring .track circle { fill: none; stroke: var(--fog); stroke-width: 3; stroke-dasharray: 2 9; stroke-linecap: round; }
+  .ring .track path { fill: none; stroke: var(--orange); stroke-width: 3; }
+  .slide.active .ring .track .spin { transform-origin: 225px 225px; animation: spin 14s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ring .hub { position: absolute; inset: 132px; border-radius: 50%; background: var(--graphite); color: #fff; display: grid; place-items: center; text-align: center; box-shadow: 0 0 0 10px var(--paper), 0 0 0 12px var(--orange); }
+  .ring .hub b { font-family: var(--display); font-stretch: 75%; font-weight: 900; font-size: 36px; text-transform: uppercase; line-height: .95; display: block; }
+  .ring .hub span { font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--orange); text-transform: uppercase; }
+  .ring .stop { position: absolute; width: 196px; padding: 12px 14px; background: var(--white); border: 1px solid var(--fog); border-top: 4px solid var(--red); border-radius: 4px; box-shadow: 0 12px 30px -16px rgba(90,20,30,.35); }
+  .ring .stop:nth-of-type(even) { border-top-color: var(--orange); }
+  .ring .stop i { font-style: normal; font-family: var(--mono); font-size: 12px; color: var(--red); letter-spacing: .1em; }
+  .ring .stop b { display: block; font-family: var(--display); font-stretch: 80%; font-weight: 850; font-size: 22px; text-transform: uppercase; line-height: 1.05; margin: 2px 0 3px; }
+  .ring .stop span { font-size: 14px; color: var(--slate); line-height: 1.3; }
+  .ring .s1 { left: 127px; top: -26px; } .ring .s2 { right: -84px; top: 178px; }
+  .ring .s3 { left: 127px; bottom: -26px; } .ring .s4 { left: -84px; top: 178px; }
+  .sources b.h { font-family: var(--mono); font-weight: 500; font-size: 14px; letter-spacing: .15em; text-transform: uppercase; color: var(--red); display: block; margin-bottom: 16px; }
+  .src { display: flex; align-items: center; gap: 16px; padding: 14px 18px; margin-bottom: 10px; background: var(--white); border: 1px solid var(--fog); border-radius: 4px; font-size: 19px; font-weight: 600; }
+  .src em { margin-left: auto; font-style: normal; font-family: var(--mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; padding: 4px 9px; border-radius: 3px; }
+  .src.live em { color: #17784a; background: #e3f3ea; }
+  .src.next { border-style: dashed; color: var(--slate); background: transparent; }
+  .src.next em { color: var(--orange-ink); background: #fff1e5; }
+  .src .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); flex: none; }
+  .src.next .dot { background: transparent; border: 2px solid var(--orange); }
+  .sources p { margin-top: 18px; font-size: 16px; color: var(--steel); line-height: 1.45; }
+
   /* 6. Impact */
   .impact { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-bottom: 48px; }
   .impact .v { font-family: var(--display); font-stretch: 70%; font-size: 96px; font-weight: 900; line-height: .95; color: var(--orange); }
@@ -212,177 +299,156 @@
 <body>
 <div id="stage">
 
-  <!-- 1. Title -->
-  <section class="slide brand" data-notes="Hi, we built a triage agent for the repair depot. Most agents tell a manager what happened last quarter. Ours tells the technician what to check on the unit in front of them, proves how often it's right, and says so when it doesn't know.">
-    <div class="title-wrap">
-      <div class="icon"><svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/></svg></div>
-      <h1>Repair Triage Agent</h1>
-      <p class="subtitle">Tells the technician what to check, before teardown</p>
+  <!-- 1. Team intro -->
+  <section class="slide dark team" data-notes="Hi, we're Team 09: Heidy Naranjo, Manuel Arellano and Manuel Garcia Acosta.">
+    <p class="kicker">SHPE 2026 Hackathon</p>
+    <div class="team-wrap">
+      <h1>Team 09</h1>
+      <p class="team-names">HEIDY NARANJO <i>|</i> MANUEL ARELLANO <i>|</i> MANUEL GARCIA ACOSTA</p>
     </div>
-    <p class="footline">SHPE 2026 Hackathon · Databricks: 3 agents + a supervisor</p>
     <span class="pageno">1</span>
   </section>
 
-  <!-- 2. Problem -->
-  <section class="slide" data-notes="Three problems. One: 83 percent of the 2026 repairs we tested on have no usable symptom, like 'UNKNOWN' or 'no reason given', so the technician starts blind. Two: the cause codes are messy, with over a thousand variants. An agent that queries the raw table undercounts Component Failure, 5,075 instead of 6,761. Three: almost a million dollars went into No Problem Found repairs, units that tested fine.">
-    <p class="kicker">The problem</p>
-    <h2>Technicians start most repairs blind</h2>
-    <div class="grid3">
-      <div class="card stat">
-        <div class="icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><path d="M12 17.5h.01"/></svg></div>
-        <div class="big">83%</div>
-        <div class="label">of 2026 test repairs have no usable symptom</div>
-        <div class="note">"UNKNOWN", "No reason given", blank</div>
-      </div>
-      <div class="card stat">
-        <div class="icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></div>
-        <div class="big small">5,075 → 6,761</div>
-        <div class="label">Component Failure count, raw vs normalized</div>
-        <div class="note">1,000+ raw cause strings → 13 clean causes</div>
-      </div>
-      <div class="card stat">
-        <div class="icon" style="background:var(--red)"><svg viewBox="0 0 24 24"><path d="M12 2v20"/><path d="M17 6.5c0-1.9-2.2-3-5-3s-5 1.2-5 3.3c0 4.7 10 2.4 10 7.2 0 2.1-2.2 3.5-5 3.5s-5-1.2-5-3.2"/></svg></div>
-        <div class="big">$996K</div>
-        <div class="label">spent on No Problem Found repairs</div>
-        <div class="note">1,116 lines where the unit tested fine</div>
-      </div>
+  <!-- 2. Title + problem -->
+  <section class="slide brand opener" data-notes="When a broken drive or controller arrives at the repair depot, the technician usually starts blind. In the 2026 repairs we tested on, 83 percent had no usable symptom: just 'unknown', 'no reason given', or blank. The cause codes are messy too: over a thousand variants for 14 real causes. Meanwhile 996 thousand dollars went to No Problem Found repairs, units that tested fine. So we built the Repair Triage Agent. It tells the technician what to check before teardown.">
+    <p class="footline">SHPE 2026 Hackathon · Databricks</p>
+    <div class="title-wrap">
+      <h1>Repair Triage Agent</h1>
+      <p class="subtitle">Tells the technician what to check, before teardown</p>
+    </div>
+    <div class="opener-stats">
+      <div><div class="v">83%</div><div class="l">of repairs arrive with no clear symptom</div></div>
+      <div><div class="v">1,000+</div><div class="l">messy cause codes → 14 causes</div></div>
+      <div><div class="v">$996K</div><div class="l">spent on units that tested fine</div></div>
     </div>
     <span class="pageno">2</span>
   </section>
 
-  <!-- 3. Architecture -->
-  <section class="slide" data-notes="Here's the architecture. Agent 1 prepares the data: it cleans 41,504 repair lines, maps each catalog to its product family, tags the symptom or flags the complaint as vague, and collapses a thousand cause codes into 13. Agent 2 builds the evidence: how often each cause happened, at four levels from very specific to very general, plus which parts and areas go with each cause and each serial's repair history. Agent 3 turns that into one triage card. On top, a supervisor routes each question to the right Genie space. Every answer traces back to counted past repairs, with no black box.">
+  <!-- 3. How it works -->
+  <section class="slide" data-notes="It's three agents on Databricks under one supervisor. Agent 1 cleans 41,000 SAP repair lines, maps each part number to its product family, and normalizes the causes. Agent 2 learns the patterns: how often each cause happened, from the exact catalog number up to the whole family, plus the parts and areas tied to each cause. Agent 3 is the recommendation layer. It ranks the likely causes and attaches step-by-step procedures for each one, plus the family's risk scorecard. Today the procedures come from a synthetic manual, because the real one wasn't available, and the pipeline is built to swap it in. A supervisor routes every question to the right agent and keeps customer data hidden.">
     <p class="kicker">How it works</p>
-    <h2>Three agents feed one triage card, routed by a supervisor</h2>
+    <h2>Three agents, one answer for the technician</h2>
     <div class="center">
-    <div class="agents">
+    <div class="agents simple">
       <div class="card agent">
-        <div class="head"><div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M6 12h12"/><path d="M10 18h4"/></svg></div>
-          <div><div class="n">Agent 1</div><div class="t">Prepare</div></div></div>
-        <p>Cleans 41,504 SAP lines, maps catalog → product family, tags symptom or vague, normalizes causes.</p>
+        <div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M6 12h12"/><path d="M10 18h4"/></svg></div>
+        <div class="n">Agent 1</div><div class="t">Clean</div>
+        <p>Tidies 41K repair records</p>
       </div>
       <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
       <div class="card agent">
-        <div class="head"><div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
-          <div><div class="n">Agent 2</div><div class="t">Evidence</div></div></div>
-        <p>Cause frequencies at 4 levels (catalog + symptom → family → all), parts and areas per cause, serial history.</p>
+        <div class="icon" style="background:var(--slate)"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <div class="n">Agent 2</div><div class="t">Learn</div>
+        <p>Finds what usually breaks</p>
       </div>
       <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
       <div class="card agent">
-        <div class="head"><div class="icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 13l2 2 4-4"/></svg></div>
-          <div><div class="n">Agent 3</div><div class="t">Score + output</div></div></div>
-        <p><code>triage_card()</code> plus what to do from the troubleshooting manual, family risk scorecards and dashboards. Scored on a 2026 holdout.</p>
+        <div class="icon" style="background:var(--orange)"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v2h6V3"/><path d="M9 13l2 2 4-4"/></svg></div>
+        <div class="n">Agent 3</div><div class="t">Recommend</div>
+        <p>Ranks causes + says what to do</p>
+        <span class="synth">Synthetic manual (stand-in)</span>
       </div>
     </div>
     <div class="supervisor">
       <div class="icon"><svg viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="5" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="9" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/><path d="M12 7v5M5 17v-5h14v5M12 12v5"/></svg></div>
-      <div><b>Supervisor agent</b><span>Routes each question to a Genie space: bench triage → Agent 3 · orders and repeat returns → Depot assistant · cycle times and pricing → Lifecycle analyst. PII fields are hidden everywhere.</span></div>
+      <div><b>Supervisor</b><span>Answers questions in plain English</span></div>
     </div>
     </div>
     <span class="pageno">3</span>
   </section>
 
-  <!-- 4. Demo -->
-  <section class="slide" data-notes="Live demo. The unit from the sample PDF: an R1394 axis module, and the customer wrote 'no reason given'. A generic agent gets stuck here. Ours falls back to the product family's history, 1,038 past Ultra 1394 repairs, and returns Component Failure at 50 percent, then Worn / End of Life and physical damage, with areas to inspect and parts to stage. The confidence is High because the sample is large and the top cause clearly leads. If the serial was repaired recently, like serial 44657535 back after 137 days, that warning comes first.">
-    <p class="kicker">Live triage</p>
-    <h2>A vague complaint still gets a ranked, sourced answer</h2>
-    <div class="demo">
-      <div class="card intake">
-        <p class="kicker">At intake</p>
-        <p class="model">R1394AM07/B</p>
-        <p class="sub">Ultra 1394 axis module</p>
-        <p class="said">Customer wrote:</p>
-        <p class="quote">"No reason given"</p>
-        <p class="repeat"><b>Second test:</b> serial 44657535 → the repeat-return warning appears first (repaired 137 days ago).</p>
+  <!-- 4. Solution architecture -->
+  <section class="slide" data-notes="Here's the solution architecture. Everything runs inside one Databricks workspace. The sources are the SAP repair-order table, about 41 and a half thousand lines, plus the causes technicians confirm in the app. A Databricks job runs our three agents in order, as SQL, every week. Agent 1 writes clean silver tables, Agent 2 writes the gold pattern tables and the triage_card function, and Agent 3 adds the manual recommendations and the accuracy scores. All of it lives in Unity Catalog, which governs access. On top, three ways to use it: the web app, a Databricks App, for technicians; a Lakeview dashboard for managers; and the AI assistant, an Agent Bricks supervisor that routes questions to three Genie spaces. Customer free-text fields are hidden from the assistant. Tech stack: Databricks for everything data and AI, a React front end on a FastAPI back end, and we built it with Claude Code as our coding assistant.">
+    <p class="kicker">Solution architecture</p>
+    <h2>All in one Databricks workspace</h2>
+    <div class="arch">
+      <div class="lane">
+        <p class="lane-lbl">Source</p>
+        <div class="node"><b>SAP repair orders</b><span>41.5K lines</span></div>
+        <div class="node"><b>Technician feedback</b><span>confirmed causes ↺ weekly</span></div>
       </div>
-      <div class="arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
-      <div class="tcard">
-        <p class="hdr">Triage card · Confidence: High · based on 1,038 past Ultra 1394 repairs</p>
-        <div class="cause"><div class="row"><b>1. Component Failure</b><b>49.8% <span style="font-weight:500;color:var(--steel)">(517)</span></b></div><div class="bar"><i style="width:83%"></i></div></div>
-        <div class="cause"><div class="row"><span>2. Worn / End of Life</span><b>21.7% <span style="font-weight:500;color:var(--steel)">(225)</span></b></div><div class="bar"><i style="width:36%"></i></div></div>
-        <div class="cause"><div class="row"><span>3. Physical / Mechanical Damage</span><b>18.6% <span style="font-weight:500;color:var(--steel)">(193)</span></b></div><div class="bar"><i style="width:31%"></i></div></div>
-        <p class="todo"><b>Inspect first:</b> processor board, shunt IGBT, fan assembly, bus capacitor<br><b>Stage:</b> IGBT / power module, resistors, connectors</p>
+      <div class="arch-arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="lane">
+        <p class="lane-lbl">Databricks Job</p>
+        <div class="node"><b>Agent 1 · Clean</b></div>
+        <div class="down">↓</div>
+        <div class="node"><b>Agent 2 · Learn</b></div>
+        <div class="down">↓</div>
+        <div class="node hot"><b>Agent 3 · Recommend</b></div>
       </div>
+      <div class="arch-arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="lane">
+        <p class="lane-lbl">Unity Catalog</p>
+        <div class="node"><b>Silver</b><span>clean repairs</span></div>
+        <div class="down">↓</div>
+        <div class="node"><b>Gold</b><span>patterns · triage_card() · manual steps · accuracy</span></div>
+      </div>
+      <div class="arch-arrow"><svg viewBox="0 0 24 24"><path d="M5 10h9V5l7 7-7 7v-5H5z"/></svg></div>
+      <div class="lane">
+        <p class="lane-lbl">Who uses it</p>
+        <div class="node use"><b>Web app</b><span>Databricks App · technicians</span></div>
+        <div class="node use"><b>Dashboard</b><span>Lakeview · managers</span></div>
+        <div class="node use"><b>AI assistant</b><span>Agent Bricks supervisor + 3 Genie spaces</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <span class="stack-lbl">Tech stack</span>
+      <div class="chip-logo"><img src="assets/databricks.png" alt="Databricks"></div>
+      <div class="chip-logo"><img src="assets/react.png" alt="React"><span>+ FastAPI</span></div>
+      <div class="chip-logo"><img src="assets/claude.png" alt="Claude" class="sq"><span>Built with Claude Code</span></div>
     </div>
     <span class="pageno">4</span>
   </section>
 
-  <!-- 5. Recommendations -->
-  <section class="slide" data-notes="This is the recommendation part, Agent 3. For each likely cause it gives the technician a step-by-step procedure, matched by cause and by the area technicians most often report for that product family. For the R1394 unit, Component Failure on the power board maps to the PCBA component-failure procedure: lockout, visual inspection, check the rails, test the suspect component, repair at board level, and re-run the functional test. One honesty point: the procedures come from a synthetic troubleshooting manual, a stand-in, because real repair manuals weren't available. The pipeline is ready for the real manual. Next to it is the family risk scorecard: Ultra 1394 has twice the depot's No Problem Found rate and three times the repair cycle time, so managers know where to look. It's all in the app, the Genie assistant and the dashboard.">
-    <p class="kicker">Recommendations · Agent 3</p>
-    <h2>Each likely cause comes with what to do next</h2>
-    <div class="recs">
-      <div class="card proc">
-        <p class="hdr">R1394 unit · #1 Component Failure · PCBA power board</p>
-        <p class="sec">Manual §1: PCBA / Circuitry, Component Failure</p>
-        <ol>
-          <li>Power down and discharge per lockout/tagout before opening.</li>
-          <li>Inspect the PCBA for scorching, cracked packages, bulging capacitors, cold joints.</li>
-          <li>Check primary power rails for shorts before re-energizing.</li>
-          <li>Confirm a suspect component with an in- or out-of-circuit test.</li>
-          <li>Replace at board level by reference designator, not the whole assembly.</li>
-          <li>Re-run the full functional test before return to service.</li>
-        </ol>
-        <span class="synth">Synthetic manual · hackathon stand-in, not Rockwell docs</span>
+  <!-- 5. Proof -->
+  <section class="slide" data-notes="We built the patterns from 2023 to 2025 and tested on 1,873 repairs from 2026, so there's no leakage. Always guessing the most common cause gets 45 percent. Our top pick is right 61 percent of the time, and the right cause is in our top three 86 percent of the time. The confidence labels hold up too: High beats Medium, which beats Low.">
+    <p class="kicker">Does it work?</p>
+    <h2>The right cause is in our top 3, 86% of the time</h2>
+    <div class="proof-solo">
+      <p class="chart-title">Tested on 1,873 new repairs from 2026</p>
+      <div class="cols">
+        <div class="col"><span class="v">45%</span><div class="b" style="height:45.1%;background:var(--steel)"></div></div>
+        <div class="col"><span class="v">61%</span><div class="b" style="height:61%;background:var(--orange)"></div></div>
+        <div class="col"><span class="v">86%</span><div class="b" style="height:86.4%;background:var(--red)"></div></div>
       </div>
-      <div class="card risk">
-        <p class="chart-title">Ultra 1394 risk scorecard vs depot</p>
-        <div class="row2"><span>No Problem Found rate</span><span><span class="val up">14.9%</span> <span class="ref">vs 7.2%</span></span></div>
-        <div class="row2"><span>Median repair cycle</span><span><span class="val up">38 days</span> <span class="ref">vs 12</span></span></div>
-        <div class="row2"><span>Repeat-return serials</span><span><span class="val">160</span></span></div>
-        <div class="row2"><span>Triage top-3 accuracy</span><span><span class="val">78.3%</span> <span class="ref">106 repairs</span></span></div>
-        <p class="facts">The manual covers 67% of labeled cause cases; the rest fall back to the general protocol.</p>
-      </div>
+      <div class="col-labels"><div>Just guessing</div><div>Our #1 pick</div><div>Our top 3</div></div>
     </div>
     <span class="pageno">5</span>
   </section>
 
-  <!-- 6. Proof -->
-  <section class="slide" data-notes="Proof. We built the patterns from 2023 to 2025 only and tested on 1,873 labeled 2026 repairs, so there's no leakage. Always guessing the most common cause gets 45 percent. Our top pick is right 61 percent of the time, and the right cause is in our top three 86 percent of the time. The confidence labels are honest: High beats Medium, which beats Low. Even for vague complaints we still get 86 percent top-three.">
-    <p class="kicker">Proof</p>
-    <h2>It beats the baseline, and knows when it doesn't know</h2>
-    <div class="proof">
-      <div>
-        <p class="chart-title">Accuracy on 1,873 held-out 2026 repairs</p>
-        <div class="cols">
-          <div class="col"><span class="v">45.1%</span><div class="b" style="height:45.1%;background:var(--steel)"></div></div>
-          <div class="col"><span class="v">61.0%</span><div class="b" style="height:61%;background:var(--orange)"></div></div>
-          <div class="col"><span class="v">86.4%</span><div class="b" style="height:86.4%;background:var(--red)"></div></div>
-        </div>
-        <div class="col-labels"><div>Baseline<br>(always top cause)</div><div>Agent top-1</div><div>Agent top-3</div></div>
+  <!-- 6. Feedback loop -->
+  <section class="slide" data-notes="It doesn't stop at launch. After every repair, the technician taps the cause they actually found, right under the triage card. Every Monday the job re-runs all three agents with those new labels, so the patterns keep up with what the depot is seeing. The app tracks live accuracy against our 86 percent benchmark and builds a ranked backlog of what to fix next: families where we're weak, intake forms that need better questions, manual sections that are missing. And it scales: every data source goes through one registry, so another product line, older archives, or a live depot feed is one mapping away.">
+    <p class="kicker">Keeps getting better</p>
+    <h2>Every repair teaches the next one</h2>
+    <div class="loopwrap">
+      <div class="ring">
+        <svg class="track" viewBox="0 0 450 450"><circle cx="225" cy="225" r="168"/><g class="spin"><path d="M225 57 A168 168 0 0 1 393 225"/></g></svg>
+        <div class="hub"><div><span>Every</span><b>Monday</b><span>re-learn</span></div></div>
+        <div class="stop s1"><i>01</i><b>Triage</b><span>Top 3 causes</span></div>
+        <div class="stop s2"><i>02</i><b>Confirm</b><span>Tech taps the real cause</span></div>
+        <div class="stop s3"><i>03</i><b>Re-learn</b><span>Agents 1→2→3 re-run</span></div>
+        <div class="stop s4"><i>04</i><b>Measure</b><span>Live accuracy + fix list</span></div>
       </div>
-      <div class="card">
-        <p class="chart-title">Top-1 accuracy by confidence label</p>
-        <div class="conf-row"><span>High</span><div class="bar"><i style="width:96.6%;background:var(--red)"></i></div><b>67.6%</b></div>
-        <div class="conf-row"><span>Medium</span><div class="bar"><i style="width:82.6%;background:var(--orange)"></i></div><b>57.8%</b></div>
-        <div class="conf-row"><span>Low</span><div class="bar"><i style="width:19.3%;background:var(--steel)"></i></div><b>13.5%</b></div>
-        <div class="facts">
-          <strong>The labels are honest: High &gt; Medium &gt; Low.</strong>
-          Vague complaints: 60.3% top-1, 86.3% top-3.<br>
-          Trained on 2023–2025 only; no 2026 rows leak into the patterns.
-        </div>
+      <div class="sources">
+        <b class="h">One registry, any source</b>
+        <div class="src live"><span class="dot"></span>SAP repair orders<em>Live</em></div>
+        <div class="src live"><span class="dot"></span>Technician feedback<em>Live</em></div>
+        <div class="src next"><span class="dot"></span>Other product lines<em>Plug in</em></div>
+        <div class="src next"><span class="dot"></span>Past archives · future feeds<em>Plug in</em></div>
+        <p>New data = one mapping. The agents pick it up on the next run.</p>
       </div>
     </div>
     <span class="pageno">6</span>
   </section>
 
   <!-- 7. Impact -->
-  <section class="slide dark" data-notes="Why it matters. Almost a million dollars in No Problem Found repairs is the first target. 1,240 units came back within 180 days, and those get flagged the moment they arrive. And 22,120 unlabeled lines can get suggested causes. Next we'd sharpen the symptom classifier, collect more teardown labels where data is thin, and blend in similar-case search. Thank you, happy to take questions.">
+  <section class="slide dark impact-slide" data-notes="That gives the depot 996 thousand dollars in No Problem Found spend to go after, 1,240 repeat returns flagged the moment they arrive, and 22,120 unlabeled repairs it can now suggest causes for. Every answer traces back to counted past repairs. Thank you, happy to take questions.">
     <p class="kicker">Impact</p>
     <h2>What this unlocks for the depot</h2>
     <div class="impact">
-      <div><div class="v">$996K</div><div class="l">No Problem Found spend to target with better intake triage</div></div>
-      <div><div class="v">1,240</div><div class="l">units back within 180 days, now flagged at intake</div></div>
-      <div><div class="v">22,120</div><div class="l">unlabeled repair lines the agent can suggest causes for</div></div>
-    </div>
-    <div class="next">
-      <b>Next steps</b>
-      <ul>
-        <li>A sharper symptom classifier: 83% of repairs still triage without a symptom</li>
-        <li>More teardown labels where data is thin (Kinetix 6000: 224 of 4,721 lines labeled)</li>
-        <li>Swap the synthetic manual for Rockwell's real repair procedures once they can be shared</li>
-        <li>Blend in similar-case search, tuned on 2025 data</li>
-      </ul>
+      <div><div class="v">$996K</div><div class="l">wasted repairs to cut</div></div>
+      <div><div class="v">1,240</div><div class="l">repeat returns flagged on arrival</div></div>
+      <div><div class="v">22,120</div><div class="l">unlabeled repairs now get a likely cause</div></div>
     </div>
     <p class="thanks">Thank you · Questions?</p>
     <span class="pageno">7</span>

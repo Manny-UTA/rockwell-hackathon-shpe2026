@@ -19,6 +19,7 @@ WITH ev AS (
   FROM ultraviolet.silver_real.repair_orders_clean o
   JOIN ultraviolet.silver_real.repair_cause c USING (order_number, line_number)
   WHERE o.submit_date >= DATE'2026-01-01'
+    AND o.source_system != 'Technician feedback'   -- scored on SAP ground truth only; feedback is tracked live below
   GROUP BY ALL
 ),
 cand AS (
@@ -215,4 +216,62 @@ FROM recs r LEFT JOIN matched m ON m.family = r.family AND m.cause = r.cause AND
 
 INSERT INTO ultraviolet.gold_real.agent_handoffs
 SELECT current_timestamp(), '3 Insights', 'gold_real.manual_recommendations', (SELECT count(*) FROM ultraviolet.gold_real.manual_recommendations), (SELECT concat(format_number(count_if(manual_section IS NOT NULL), 0), ' of ', format_number(count(*), 0), ' family x cause pairs matched to a synthetic-manual procedure') FROM ultraviolet.gold_real.manual_recommendations)
+;
+
+-- ---------------------------------------------------------------------------
+-- Gold: improvement backlog (feedback loop). A view, so technician feedback submitted in the
+-- app shows up immediately; the rest refreshes with each job run.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW ultraviolet.gold_real.improvement_backlog
+COMMENT 'Agent 3 (live view): ranked, data-driven suggestions for improving triage - weak families, vague intake, No Problem Found cost, manual gaps, unmapped product lines, and misses technicians reported. repairs_affected = past repairs the finding touches.'
+AS
+WITH ev AS (
+  SELECT family, count(*) AS n, avg(CAST(hit_at_3 AS INT)) AS top3
+  FROM ultraviolet.gold_real.eval_results GROUP BY family
+),
+fam AS (SELECT * FROM ultraviolet.gold_real.family_insights WHERE family IS NOT NULL),
+items AS (
+  SELECT 'Feedback' AS area, family,
+         concat('Technicians reported ', count(*), ' repair(s) where the confirmed cause, ', actual_cause, ', was not in the top 3') AS finding,
+         'Review these cases: check whether the cause is rare in this family''s history or the symptom rules misread the complaint.' AS suggestion,
+         count(*) AS repairs_affected
+  FROM ultraviolet.gold_real.triage_feedback WHERE verdict = 'missed' GROUP BY family, actual_cause
+  UNION ALL
+  SELECT 'Feedback', family, concat(count(*), ' technician(s) said the manual procedure did not help'),
+         'Revise the matched manual section for this family with the technicians'' comments.', count(*)
+  FROM ultraviolet.gold_real.triage_feedback WHERE manual_helpful = FALSE GROUP BY family
+  UNION ALL
+  SELECT 'Model', family, concat('Top-3 accuracy is ', CAST(round(100 * top3) AS INT), '% on ', n, ' held-out 2026 repairs'),
+         'Add catalog-level symptom rules or more labeled history for this family; review its misses in the Accuracy tab.',
+         CAST(round(n * (1 - top3)) AS BIGINT)
+  FROM ev WHERE n >= 30 AND top3 < 0.80
+  UNION ALL
+  SELECT 'Intake', family, concat(CAST(round(vague_complaint_pct) AS INT), '% of ', format_number(order_lines, 0), ' repairs arrive with no usable symptom'),
+         'Add required intake questions to the return form (powers on? fault code shown? visible damage?).',
+         CAST(round(order_lines * vague_complaint_pct / 100) AS BIGINT)
+  FROM fam WHERE order_lines >= 300 AND vague_complaint_pct >= 85
+  UNION ALL
+  SELECT 'Cost', family, concat(no_problem_found_pct, '% of labeled repairs ended as No Problem Found'),
+         'Add a quick bench pre-test before full teardown, and ask the customer for fault context on return.',
+         CAST(round(labeled_lines * no_problem_found_pct / 100) AS BIGINT)
+  FROM fam WHERE labeled_lines >= 100 AND no_problem_found_pct >= 10
+  UNION ALL
+  SELECT 'Manual', family, concat('No tailored manual procedure for ', cause, ' (', cases, ' past cases)'),
+         concat('Write a troubleshooting section for ', cause, ' and load it into troubleshooting_manual.'), cases
+  FROM ultraviolet.gold_real.manual_recommendations WHERE manual_section IS NULL AND cases >= 100
+  UNION ALL
+  SELECT 'Coverage', family, concat(format_number(order_lines, 0), ' repairs from an unmapped catalog prefix'),
+         'Map this prefix in lookup_family so the product line gets its own patterns instead of depot-wide rates.', order_lines
+  FROM fam WHERE family LIKE 'Other %' AND order_lines >= 100
+),
+capped AS (
+  SELECT * FROM items QUALIFY row_number() OVER (PARTITION BY area ORDER BY repairs_affected DESC) <= 6
+)
+SELECT CAST(row_number() OVER (ORDER BY area = 'Feedback' DESC, repairs_affected DESC) AS INT) AS priority,
+       area, family, finding, suggestion, repairs_affected
+FROM capped
+;
+
+INSERT INTO ultraviolet.gold_real.agent_handoffs
+SELECT current_timestamp(), '3 Insights', 'gold_real.improvement_backlog', (SELECT count(*) FROM ultraviolet.gold_real.improvement_backlog), (SELECT concat(format_number(count(*), 0), ' improvement suggestions; ', format_number((SELECT count(*) FROM ultraviolet.gold_real.triage_feedback), 0), ' technician feedback submissions so far') FROM ultraviolet.gold_real.improvement_backlog)
 ;

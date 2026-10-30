@@ -13,6 +13,7 @@ export default function Triage() {
   const [catalogs, setCatalogs] = useState([])
   const [form, setForm] = useState({ catalog: '', serial: '', failure_text: '' })
   const [card, setCard] = useState(null)
+  const [asked, setAsked] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -26,6 +27,7 @@ export default function Triage() {
     setError(null)
     try {
       setCard(await api('/triage', { method: 'POST', body: values }))
+      setAsked(values)
     } catch (e) {
       setError(e.message)
       setCard(null)
@@ -76,6 +78,7 @@ export default function Triage() {
           <p className="muted center">No historical pattern found for this catalog number.</p>
         )}
         {card?.found && !loading && <TriageCard card={card} />}
+        {card?.found && !loading && asked && <ConfirmCause key={JSON.stringify(asked)} card={card} asked={asked} />}
       </section>
     </div>
   )
@@ -119,5 +122,76 @@ export function TriageCard({ card }) {
         troubleshooting manual (hackathon stand-in, not Rockwell documentation).
       </p>
     </>
+  )
+}
+
+// Feedback loop: after the repair, the technician confirms the actual cause. Agent 1 learns from it
+// on the next weekly job run, and the Improve tab tracks live accuracy from these answers.
+function ConfirmCause({ card, asked }) {
+  const [causes, setCauses] = useState([])
+  const [f, setF] = useState({ actual_cause: '', order_number: '', manual_helpful: null, comment: '' })
+  const [state, setState] = useState({ saving: false, done: null, error: null })
+
+  useEffect(() => {
+    api('/causes').then((d) => setCauses(d.causes)).catch(() => {})
+  }, [])
+
+  const predicted = card.causes.map((c) => c.cause)
+  async function submit(e) {
+    e.preventDefault()
+    if (!f.actual_cause) return setState({ ...state, error: 'Pick the cause you found.' })
+    setState({ saving: true, done: null, error: null })
+    try {
+      const r = await api('/feedback', {
+        method: 'POST',
+        body: { ...asked, ...f, predicted, confidence: card.confidence, level: card.level },
+      })
+      setState({ saving: false, done: r.verdict, error: null })
+    } catch (err) {
+      setState({ saving: false, done: null, error: err.message })
+    }
+  }
+
+  if (state.done) {
+    const msg = { top1: 'Our #1 pick was right.', top3: 'The cause was in our top 3.', missed: 'We missed this one, which is the most useful kind of feedback.' }
+    return (
+      <div className="loop-card done">
+        <span className="loop-tag">FEEDBACK SAVED</span>
+        <p><b>{msg[state.done]}</b> This case joins the patterns on the next weekly refresh, and it already counts in the Improve tab.</p>
+      </div>
+    )
+  }
+
+  return (
+    <form className="loop-card" onSubmit={submit}>
+      <span className="loop-tag">CLOSE THE LOOP</span>
+      <h3>After the repair: what was the actual cause?</h3>
+      <div className="loop-causes">
+        {predicted.map((c, i) => (
+          <button type="button" key={c} className={`chip ${f.actual_cause === c ? 'on' : ''}`}
+            onClick={() => setF({ ...f, actual_cause: c })}>#{i + 1} {c}</button>
+        ))}
+        <select value={predicted.includes(f.actual_cause) ? '' : f.actual_cause}
+          onChange={(e) => setF({ ...f, actual_cause: e.target.value })}>
+          <option value="">Something else…</option>
+          {causes.filter((c) => !predicted.includes(c)).map((c) => <option key={c}>{c}</option>)}
+        </select>
+      </div>
+      <div className="loop-row">
+        <span className="muted small">Did the manual procedure help?</span>
+        {[['Yes', true], ['No', false]].map(([label, v]) => (
+          <button type="button" key={label} className={`chip ${f.manual_helpful === v ? 'on' : ''}`}
+            onClick={() => setF({ ...f, manual_helpful: f.manual_helpful === v ? null : v })}>{label}</button>
+        ))}
+      </div>
+      <div className="loop-row">
+        <input value={f.order_number} maxLength={20} placeholder="SAP order # (optional)"
+          onChange={(e) => setF({ ...f, order_number: e.target.value })} />
+        <input value={f.comment} maxLength={500} placeholder="Note for the team (optional)"
+          onChange={(e) => setF({ ...f, comment: e.target.value })} />
+      </div>
+      <button className="primary" disabled={state.saving}>{state.saving ? 'Saving…' : 'Send feedback'}</button>
+      {state.error && <div className="alert">{state.error}</div>}
+    </form>
   )
 }
